@@ -1,0 +1,15 @@
+# Netlify build configuration for a Vite project
+
+[build]
+  # This command tells Netlify to run your project's build script
+  command = "yarn build"
+  
+  # This specifies the directory that contains the built site
+  publish = "dist"
+
+# Redirect rule for Single-Page Applications (SPAs)
+# This ensures that all routes are handled by your index.html file
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
