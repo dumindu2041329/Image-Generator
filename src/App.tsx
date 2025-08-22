@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedImage } from './types';
 import { ImageGenerationService } from './services/imageService';
 import { useImageHistory } from './hooks/useImageHistory';
@@ -15,6 +15,17 @@ function App() {
   
   const { saveImage } = useImageHistory();
   const { user, isConfigured } = useAuth();
+  const prevUserRef = useRef(user);
+
+  // This effect clears the locally generated images when the user logs out.
+  useEffect(() => {
+    // Check if the user state has transitioned from logged-in to logged-out
+    if (prevUserRef.current && !user) {
+      setImages([]);
+    }
+    // Update the ref to the current user for the next render cycle
+    prevUserRef.current = user;
+  }, [user]);
 
   const handleGenerate = async (prompt: string, style?: 'vivid' | 'natural', aspectRatio?: '1:1' | '16:9' | '4:3') => {
     setIsGenerating(true);
