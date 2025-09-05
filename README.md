@@ -51,7 +51,7 @@ cd image-generator
 ### 2. Install Dependencies
 
 ```bash
-yarn install
+npm install
 ```
 
 ### 3. Set Up Supabase (Optional but Recommended)
@@ -86,7 +86,7 @@ If you skip the Supabase setup, the app will still work, but authentication and 
 ### 5. Run the Development Server
 
 ```bash
-yarn dev
+npm run dev
 ```
 
 The application should now be running on `http://localhost:5173`.
