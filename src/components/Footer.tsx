@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, Github, Twitter } from 'lucide-react';
+import { Heart, Github, Linkedin } from 'lucide-react';
 
 const Footer: React.FC = () => {
   return (
@@ -13,23 +13,27 @@ const Footer: React.FC = () => {
         
         <div className="flex items-center justify-center gap-6 mb-4">
           <a
-            href="#"
+            href="https://github.com/dumindu2041329"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-gray-400 hover:text-blue-400 transition-colors duration-300"
             title="GitHub"
           >
             <Github className="w-5 h-5" />
           </a>
           <a
-            href="#"
+            href="https://www.linkedin.com/in/dumindu-damsara-0049ab246/"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-gray-400 hover:text-blue-400 transition-colors duration-300"
-            title="Twitter"
+            title="LinkedIn"
           >
-            <Twitter className="w-5 h-5" />
+            <Linkedin className="w-5 h-5" />
           </a>
         </div>
         
         <p className="text-sm text-gray-500">
-          © 2025 AI Image Generator. All rights reserved.
+          © {new Date().getFullYear()} AI Image Generator. All rights reserved.
         </p>
       </div>
     </footer>

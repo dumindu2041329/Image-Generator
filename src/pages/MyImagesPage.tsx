@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
-import { X, History, Heart, Trash2, Download, Filter, Search } from 'lucide-react';
+import { History, Heart, Trash2, Download, Filter, Search, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useImageHistory } from '../hooks/useImageHistory';
 import { useAuth } from '../hooks/useAuth';
-import ConfirmDialog from './ConfirmDialog';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
-interface ImageHistoryProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
+const MyImagesPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; imageId: string; prompt: string }>({ 
@@ -19,6 +16,8 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
   });
   const { savedImages, loading, deleteImage, toggleFavorite } = useImageHistory();
   const { user, isConfigured } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
 
   const filteredImages = savedImages.filter(image => {
     const matchesFilter = filter === 'all' || (filter === 'favorites' && image.is_favorite);
@@ -27,12 +26,25 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
   });
 
   const handleDownload = (imageUrl: string, prompt: string, id: string) => {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `ai-generated-${id}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `ai-generated-${id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showSuccess(
+        'Download Started',
+        'Your image is being downloaded.'
+      );
+    } catch (error) {
+      console.error('Download failed:', error);
+      showError(
+        'Download Failed',
+        'Could not download the image. Please try again.'
+      );
+    }
   };
 
   const handleDelete = (imageId: string, prompt: string) => {
@@ -43,9 +55,40 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
     try {
       await deleteImage(deleteConfirm.imageId);
       setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+      showSuccess(
+        'Image Deleted',
+        'The image has been permanently removed from your collection.'
+      );
     } catch (error) {
       console.error('Failed to delete image:', error);
       setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+      showError(
+        'Delete Failed',
+        'Could not delete the image. Please try again.'
+      );
+    }
+  };
+
+  const handleToggleFavorite = async (imageId: string, currentFavoriteStatus: boolean) => {
+    try {
+      await toggleFavorite(imageId);
+      if (currentFavoriteStatus) {
+        showSuccess(
+          'Removed from Favorites',
+          'The image has been removed from your favorites.'
+        );
+      } else {
+        showSuccess(
+          'Added to Favorites',
+          'The image has been added to your favorites.'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      showError(
+        'Failed to Update Favorite',
+        'Could not update the favorite status. Please try again.'
+      );
     }
   };
 
@@ -53,34 +96,30 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
     setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
   };
 
-  if (!isOpen) return null;
-
   if (!isConfigured || !user) {
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="glass rounded-2xl p-8 max-w-md w-full border border-white/20">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Image History</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <div className="text-center">
-            <History className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-white mb-2">Sign In Required</h3>
-            <p className="text-gray-300 mb-6">
-              Sign in to view your saved image history and favorites.
-            </p>
-            <button
-              onClick={onClose}
-              className="glass glass-hover rounded-xl px-6 py-3 text-blue-400 font-medium transition-all duration-300"
-            >
-              Close
-            </button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+        {/* Background decoration */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+          <div className="glass rounded-2xl p-8 max-w-md w-full border border-white/20">
+            <div className="text-center">
+              <History className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-white mb-2">Sign In Required</h3>
+              <p className="text-gray-300 mb-6">
+                Sign in to view your saved image history and favorites.
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="glass glass-hover rounded-xl px-6 py-3 text-blue-400 font-medium transition-all duration-300"
+              >
+                Go Back to Generator
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -88,27 +127,35 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50">
-      <div className="h-full flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+      {/* Background decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
+      </div>
+      
+      <div className="relative z-10">
         {/* Header */}
         <div className="glass border-b border-white/20 p-6">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                <History className="w-8 h-8" />
-                My Images
-              </h2>
-              <p className="text-gray-400 mt-1">
-                {filteredImages.length} image{filteredImages.length !== 1 ? 's' : ''} 
-                {filter === 'favorites' ? ' in favorites' : ''}
-              </p>
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center gap-4 mb-4">
+              <button
+                onClick={() => navigate('/')}
+                className="glass glass-hover rounded-xl p-3 text-gray-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                  <History className="w-8 h-8" />
+                  My Images
+                </h1>
+                <p className="text-gray-400 mt-1">
+                  {filteredImages.length} image{filteredImages.length !== 1 ? 's' : ''} 
+                  {filter === 'favorites' ? ' in favorites' : ''}
+                </p>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="glass glass-hover rounded-xl p-3 text-gray-400 hover:text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
           </div>
         </div>
 
@@ -156,7 +203,7 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="p-6">
           <div className="max-w-6xl mx-auto">
             {loading ? (
               <div className="text-center py-12">
@@ -169,11 +216,17 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
                 <h3 className="text-lg font-semibold text-white mb-2">
                   {filter === 'favorites' ? 'No favorite images yet' : 'No images saved yet'}
                 </h3>
-                <p className="text-gray-400">
+                <p className="text-gray-400 mb-6">
                   {filter === 'favorites' 
                     ? 'Heart some images to see them here!' 
                     : 'Start generating images to build your collection!'}
                 </p>
+                <button
+                  onClick={() => navigate('/')}
+                  className="glass glass-hover rounded-xl px-6 py-3 text-blue-400 font-medium transition-all duration-300"
+                >
+                  Generate Your First Image
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -190,7 +243,7 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
                       {/* Action buttons */}
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button
-                          onClick={() => toggleFavorite(image.id)}
+                          onClick={() => handleToggleFavorite(image.id, image.is_favorite)}
                           className={`glass rounded-full p-2 transition-colors duration-300 ${
                             image.is_favorite 
                               ? 'text-pink-400 bg-pink-500/20' 
@@ -255,4 +308,4 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default ImageHistory;
+export default MyImagesPage;

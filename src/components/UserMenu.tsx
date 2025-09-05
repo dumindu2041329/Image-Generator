@@ -1,23 +1,39 @@
 import React, { useState } from 'react';
 import { User, LogOut, History, Settings, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../contexts/ToastContext';
 
 interface UserMenuProps {
-  onShowHistory: () => void;
   onShowAuth: () => void;
 }
 
-const UserMenu: React.FC<UserMenuProps> = ({ onShowHistory, onShowAuth }) => {
+const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, signOut, isConfigured } = useAuth();
+  const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
       await signOut();
       setIsOpen(false);
+      showSuccess(
+        'Signed Out Successfully',
+        'You have been signed out of your account.'
+      );
     } catch (error) {
       console.error('Error signing out:', error);
+      showError(
+        'Sign Out Failed',
+        'An error occurred while signing out. Please try again.'
+      );
     }
+  };
+
+  const handleMyImagesClick = () => {
+    navigate('/my-images');
+    setIsOpen(false);
   };
 
   if (!isConfigured) {
@@ -75,10 +91,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowHistory, onShowAuth }) => {
               </div>
               
               <button
-                onClick={() => {
-                  onShowHistory();
-                  setIsOpen(false);
-                }}
+                onClick={handleMyImagesClick}
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
               >
                 <History className="w-4 h-4" />

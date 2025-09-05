@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { Sparkles, Zap, Infinity } from 'lucide-react';
 import UserMenu from './UserMenu';
 import AuthModal from './AuthModal';
-import ImageHistory from './ImageHistory';
 
 const Header: React.FC = () => {
   const [showAuth, setShowAuth] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <>
@@ -15,7 +13,6 @@ const Header: React.FC = () => {
           {/* User Menu */}
           <div className="flex justify-end mb-8">
             <UserMenu 
-              onShowHistory={() => setShowHistory(true)}
               onShowAuth={() => setShowAuth(true)}
             />
           </div>
@@ -64,10 +61,6 @@ const Header: React.FC = () => {
       <AuthModal 
         isOpen={showAuth} 
         onClose={() => setShowAuth(false)} 
-      />
-      <ImageHistory 
-        isOpen={showHistory} 
-        onClose={() => setShowHistory(false)} 
       />
     </>
   );

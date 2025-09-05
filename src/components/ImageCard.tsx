@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, Copy, Clock, Check, RectangleHorizontal } from 'lucide-react';
 import { GeneratedImage } from '../types';
 import { copyToClipboard } from '../utils/clipboard';
+import { useToast } from '../contexts/ToastContext';
 
 interface ImageCardProps {
   image: GeneratedImage;
@@ -9,23 +10,45 @@ interface ImageCardProps {
 
 const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { showSuccess, showError } = useToast();
 
   const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = image.url;
-    link.download = `ai-generated-${image.aspectRatio || '1:1'}-${image.id}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.href = image.url;
+      link.download = `ai-generated-${image.aspectRatio || '1:1'}-${image.id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showSuccess(
+        'Download Started',
+        'Your image is being downloaded.'
+      );
+    } catch (error) {
+      console.error('Download failed:', error);
+      showError(
+        'Download Failed',
+        'Could not download the image. Please try again.'
+      );
+    }
   };
 
   const handleCopyPrompt = async () => {
     try {
       await copyToClipboard(image.prompt);
       setCopyStatus('success');
+      showSuccess(
+        'Prompt Copied!',
+        'The image prompt has been copied to your clipboard.'
+      );
     } catch (err) {
       console.error('Failed to copy prompt:', err);
       setCopyStatus('error');
+      showError(
+        'Copy Failed',
+        'Could not copy the prompt to clipboard. Please try copying manually.'
+      );
       // As a final resort, show the prompt in an alert
       alert(`Could not copy automatically. Please copy this prompt manually:\n\n"${image.prompt}"`);
     }

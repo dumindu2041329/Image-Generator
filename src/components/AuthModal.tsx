@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../contexts/ToastContext';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'signin' | 'signup';
+  initialMode?: 'signin' | 'signup' | 'reset';
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'signin' }) => {
-  const [mode, setMode] = useState(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -19,11 +20,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const { signIn, signUp, resetPassword, isConfigured } = useAuth();
+  const { showSuccess, showError, showInfo } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isConfigured) {
-      setError('Authentication is not configured. Please connect your Supabase project.');
+      showError(
+        'Authentication Not Configured',
+        'Please connect your Supabase project to enable authentication.'
+      );
       return;
     }
 
@@ -33,17 +38,34 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
     try {
       if (mode === 'signin') {
         await signIn(email, password);
+        showSuccess(
+          'Welcome Back!',
+          'You have successfully signed in to your account.'
+        );
         onClose();
       } else if (mode === 'signup') {
         await signUp(email, password, fullName);
         setMode('signin');
+        showInfo(
+          'Account Created Successfully!',
+          'Please check your email to verify your account, then sign in.'
+        );
         setError('Account created! Check your email to verify your account, then sign in.');
       } else if (mode === 'reset') {
         await resetPassword(email);
         setResetEmailSent(true);
+        showSuccess(
+          'Password Reset Email Sent',
+          'Check your email for password reset instructions.'
+        );
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      const errorMessage = err.message || 'An error occurred';
+      setError(errorMessage);
+      showError(
+        'Authentication Error',
+        errorMessage
+      );
     } finally {
       setLoading(false);
     }
