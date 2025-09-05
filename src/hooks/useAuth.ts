@@ -90,6 +90,57 @@ export const useAuth = () => {
     if (error) throw error;
   };
 
+  const updateProfile = async (updates: { full_name?: string; avatar_url?: string }) => {
+    if (!isConfigured) {
+      throw new Error('Supabase not configured');
+    }
+
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const { data, error } = await supabase!.auth.updateUser({
+      data: updates
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
+  const updateEmail = async (newEmail: string) => {
+    if (!isConfigured) {
+      throw new Error('Supabase not configured');
+    }
+
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const { data, error } = await supabase!.auth.updateUser({
+      email: newEmail
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    if (!isConfigured) {
+      throw new Error('Supabase not configured');
+    }
+
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const { data, error } = await supabase!.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
   return {
     user,
     loading,
@@ -98,5 +149,8 @@ export const useAuth = () => {
     signUp,
     signOut,
     resetPassword,
+    updateProfile,
+    updateEmail,
+    updatePassword,
   };
 };

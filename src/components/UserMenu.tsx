@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { User, LogOut, History, Settings, ChevronDown } from 'lucide-react';
+import { User, LogOut, History, Settings, ChevronDown, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
+import ProfileImage from './ProfileImage';
 
 interface UserMenuProps {
   onShowAuth: () => void;
@@ -36,6 +37,11 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
     setIsOpen(false);
   };
 
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsOpen(false);
+  };
+
   if (!isConfigured) {
     return (
       <button
@@ -66,9 +72,12 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="glass glass-hover rounded-xl px-4 py-2 flex items-center gap-2 text-white hover:text-blue-300 transition-all duration-300"
       >
-        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-          <User className="w-4 h-4 text-white" />
-        </div>
+        <ProfileImage
+          imageUrl={user.user_metadata?.avatar_url}
+          fullName={user.user_metadata?.full_name}
+          email={user.email}
+          size="sm"
+        />
         <span className="hidden sm:inline text-sm">
           {user.user_metadata?.full_name || user.email?.split('@')[0]}
         </span>
@@ -84,11 +93,29 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
           <div className="absolute right-0 top-full mt-2 w-48 glass rounded-xl border border-white/20 z-20">
             <div className="p-2">
               <div className="px-3 py-2 border-b border-white/10 mb-2">
-                <p className="text-sm text-white font-medium">
-                  {user.user_metadata?.full_name || 'User'}
-                </p>
-                <p className="text-xs text-gray-400">{user.email}</p>
+                <div className="flex items-center gap-3 mb-2">
+                  <ProfileImage
+                    imageUrl={user.user_metadata?.avatar_url}
+                    fullName={user.user_metadata?.full_name}
+                    email={user.email}
+                    size="md"
+                  />
+                  <div>
+                    <p className="text-sm text-white font-medium">
+                      {user.user_metadata?.full_name || 'User'}
+                    </p>
+                    <p className="text-xs text-gray-400">{user.email}</p>
+                  </div>
+                </div>
               </div>
+              
+              <button
+                onClick={handleProfileClick}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200"
+              >
+                <UserCircle className="w-4 h-4" />
+                <span>Profile</span>
+              </button>
               
               <button
                 onClick={handleMyImagesClick}
