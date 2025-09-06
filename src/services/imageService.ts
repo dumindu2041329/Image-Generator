@@ -73,8 +73,8 @@ export class ImageGenerationService {
         aspectRatio,
       };
 
-      // Optionally validate in background (non-blocking)
-      this.validateImageUrlInBackground(imageUrl).catch(() => {
+      // Optionally validate in background (non-blocking) with retry logic
+      this.validateImageUrlWithRetry(imageUrl, 2).catch(() => {
         // If validation fails, we don't need to do anything
         // The image will still be shown to the user
         console.warn('Background validation failed for:', imageUrl);
@@ -101,9 +101,6 @@ export class ImageGenerationService {
     try {
       const dimensions = this.getImageDimensions(request.aspectRatio);
       
-      // Create a fallback URL-based generator
-      const fallbackUrl = `https://api.unsplash.com/photos/random?query=${encodeURIComponent(request.prompt)}&client_id=unsplash_demo&w=${dimensions.width}&h=${dimensions.height}`;
-      
       // Use a simple image service that works reliably
       const imageUrl = `https://picsum.photos/${dimensions.width}/${dimensions.height}?random=${Math.floor(Math.random() * 1000)}`;
       
@@ -114,7 +111,7 @@ export class ImageGenerationService {
         timestamp: new Date(),
         aspectRatio: request.aspectRatio || '1:1',
       };
-    } catch (error) {
+    } catch {
       throw new Error('Alternative service failed');
     }
   }

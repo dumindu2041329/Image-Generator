@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, LogOut, History, Settings, ChevronDown, UserCircle } from 'lucide-react';
+import { User, LogOut, History, ChevronDown, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';

@@ -41,7 +41,7 @@ export const copyToClipboard = async (text: string): Promise<void> => {
       // If execCommand returns false, it indicates failure.
       throw new Error('execCommand returned false');
     }
-  } catch (err) {
+  } catch {
     // If an error occurs during the command, we re-throw it.
     throw new Error('Fallback copy method failed.');
   } finally {

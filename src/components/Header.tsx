@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Zap, Infinity } from 'lucide-react';
+import { Sparkles, Zap, Infinity as InfinityIcon } from 'lucide-react';
 import UserMenu from './UserMenu';
 import AuthModal from './AuthModal';
 
@@ -44,7 +44,7 @@ const Header: React.FC = () => {
               </div>
               <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
               <div className="flex items-center gap-2">
-                <Infinity className="w-4 h-4 text-green-400" />
+                <InfinityIcon className="w-4 h-4 text-green-400" />
                 <span>Unlimited Free</span>
               </div>
               <div className="w-1 h-1 bg-gray-600 rounded-full"></div>

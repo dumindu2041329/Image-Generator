@@ -150,7 +150,7 @@ export class ProfileImageService {
   /**
    * Gets the current profile image URL from user metadata
    */
-  static getProfileImageUrl(user: any): string | undefined {
+  static getProfileImageUrl(user: { user_metadata?: { avatar_url?: string } } | null): string | undefined {
     return user?.user_metadata?.avatar_url;
   }
 

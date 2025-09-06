@@ -9,18 +9,16 @@ import ProfileImage from '../components/ProfileImage';
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, isConfigured, updateProfile, updateEmail, updatePassword } = useAuth();
-  const { showSuccess, showError, showWarning, showInfo } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
 
   // Form states
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // UI states
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState({
@@ -32,7 +30,6 @@ const ProfilePage: React.FC = () => {
   const [errors, setErrors] = useState({
     fullName: '',
     email: '',
-    currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
@@ -187,7 +184,6 @@ const ProfilePage: React.FC = () => {
 
     try {
       await updatePassword(newPassword);
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       showSuccess(

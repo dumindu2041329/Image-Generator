@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured, SavedImage } from '../lib/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase, SavedImage } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
 export const useImageHistory = () => {
@@ -7,7 +7,7 @@ export const useImageHistory = () => {
   const [loading, setLoading] = useState(false);
   const { user, isConfigured } = useAuth();
 
-  const fetchSavedImages = async () => {
+  const fetchSavedImages = useCallback(async () => {
     if (!isConfigured || !user || !supabase) return;
 
     setLoading(true);
@@ -25,7 +25,7 @@ export const useImageHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isConfigured, user]);
 
   useEffect(() => {
     if (user && isConfigured) {
@@ -33,7 +33,7 @@ export const useImageHistory = () => {
     } else {
       setSavedImages([]);
     }
-  }, [user, isConfigured]);
+  }, [user, isConfigured, fetchSavedImages]);
 
   const saveImage = async (
     prompt: string,

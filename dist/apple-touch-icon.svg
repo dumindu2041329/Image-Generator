@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="bgApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconApple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners for Apple -->
+  <rect x="0" y="0" width="180" height="180" rx="40" fill="url(#bgApple)"/>
+  
+  <!-- AI brain/circuit pattern -->
+  <g fill="url(#iconApple)" opacity="0.9">
+    <!-- Main image frame -->
+    <rect x="45" y="60" width="90" height="60" rx="6" fill="none" stroke="url(#iconApple)" stroke-width="4"/>
+    
+    <!-- Mountain/landscape icon inside frame -->
+    <path d="M55 105 L73 85 L85 95 L105 75 L125 105 Z" fill="url(#iconApple)" opacity="0.7"/>
+    
+    <!-- Sun/light source -->
+    <circle cx="105" cy="85" r="8" fill="url(#iconApple)" opacity="0.8"/>
+    
+    <!-- AI nodes/connections -->
+    <circle cx="55" cy="45" r="4" fill="url(#iconApple)"/>
+    <circle cx="90" cy="35" r="4" fill="url(#iconApple)"/>
+    <circle cx="125" cy="45" r="4" fill="url(#iconApple)"/>
+    <circle cx="45" cy="135" r="4" fill="url(#iconApple)"/>
+    <circle cx="90" cy="145" r="4" fill="url(#iconApple)"/>
+    <circle cx="135" cy="135" r="4" fill="url(#iconApple)"/>
+    
+    <!-- Connection lines -->
+    <path d="M55 45 L90 35 L125 45" fill="none" stroke="url(#iconApple)" stroke-width="2" opacity="0.6"/>
+    <path d="M45 135 L90 145 L135 135" fill="none" stroke="url(#iconApple)" stroke-width="2" opacity="0.6"/>
+    <path d="M55 45 L45 60" fill="none" stroke="url(#iconApple)" stroke-width="2" opacity="0.6"/>
+    <path d="M125 45 L135 60" fill="none" stroke="url(#iconApple)" stroke-width="2" opacity="0.6"/>
+    <path d="M45 120 L45 135" fill="none" stroke="url(#iconApple)" stroke-width="2" opacity="0.6"/>
+    <path d="M135 120 L135 135" fill="none" stroke="url(#iconApple)" stroke-width="2" opacity="0.6"/>
+  </g>
+</svg>

@@ -37,6 +37,10 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     return `toast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
+
   const addToast = useCallback((toastData: Omit<Toast, 'id'>) => {
     const id = generateId();
     const toast: Toast = {
@@ -55,11 +59,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     }
 
     return id;
-  }, [generateId]);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
+  }, [generateId, removeToast]);
 
   const clearAllToasts = useCallback(() => {
     setToasts([]);

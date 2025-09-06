@@ -87,3 +87,87 @@
     background-position: 200% 0; 
   }
 }
+
+/* Custom Gradient Scrollbars */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(26, 26, 46, 0.3);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(236, 72, 153, 0.8) 0%, 
+    rgba(219, 39, 119, 0.8) 30%, 
+    rgba(190, 24, 93, 0.8) 70%, 
+    rgba(157, 23, 77, 0.8) 100%);
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(236, 72, 153, 1) 0%, 
+    rgba(219, 39, 119, 1) 30%, 
+    rgba(190, 24, 93, 1) 70%, 
+    rgba(157, 23, 77, 1) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, 
+    rgba(219, 39, 119, 1) 0%, 
+    rgba(190, 24, 93, 1) 30%, 
+    rgba(157, 23, 77, 1) 70%, 
+    rgba(131, 24, 67, 1) 100%);
+  transform: scale(0.95);
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(26, 26, 46, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 72, 153, 0.8) rgba(26, 26, 46, 0.3);
+}
+
+/* Custom thin scrollbar for mobile and smaller elements */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(26, 26, 46, 0.2);
+  border-radius: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, 
+    rgba(236, 72, 153, 0.6) 0%, 
+    rgba(219, 39, 119, 0.6) 30%, 
+    rgba(190, 24, 93, 0.6) 70%, 
+    rgba(157, 23, 77, 0.6) 100%);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, 
+    rgba(236, 72, 153, 0.8) 0%, 
+    rgba(219, 39, 119, 0.8) 30%, 
+    rgba(190, 24, 93, 0.8) 70%, 
+    rgba(157, 23, 77, 0.8) 100%);
+}

@@ -59,8 +59,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
           'Check your email for password reset instructions.'
         );
       }
-    } catch (err: any) {
-      const errorMessage = err.message || 'An error occurred';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
       showError(
         'Authentication Error',
