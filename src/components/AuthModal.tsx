@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
@@ -19,8 +19,34 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   const [error, setError] = useState('');
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
-  const { signIn, signUp, resetPassword, isConfigured } = useAuth();
+  const { user, signIn, signUp, resetPassword, isConfigured } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
+
+  // Close modal automatically if user becomes authenticated
+  useEffect(() => {
+    if (user && isOpen) {
+      onClose();
+    }
+  }, [user, isOpen, onClose]);
+
+  // Reset mode and clear form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setError('');
+      setResetEmailSent(false);
+    } else {
+      // Clear form data when modal closes
+      clearFormData();
+    }
+  }, [isOpen, initialMode]);
+
+  // Cleanup effect when component unmounts
+  useEffect(() => {
+    return () => {
+      clearFormData();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +71,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
         onClose();
       } else if (mode === 'signup') {
         await signUp(email, password, fullName);
-        setMode('signin');
         showInfo(
           'Account Created Successfully!',
           'Please check your email to verify your account, then sign in.'
         );
+        // Clear form and switch to signin after successful signup
+        clearFormData();
+        setMode('signin');
         setError('Account created! Check your email to verify your account, then sign in.');
       } else if (mode === 'reset') {
         await resetPassword(email);
@@ -72,6 +100,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   };
 
   const resetForm = () => {
+    setError('');
+    setResetEmailSent(false);
+    setShowPassword(false);
+    // Don't clear email/password/fullName to preserve user input
+  };
+
+  const clearFormData = () => {
     setEmail('');
     setPassword('');
     setFullName('');
@@ -83,6 +118,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   const switchMode = (newMode: 'signin' | 'signup' | 'reset') => {
     setMode(newMode);
     resetForm();
+    // Clear form data when switching modes
+    clearFormData();
+  };
+
+  const handleClose = () => {
+    // Clear all form data when closing modal for security
+    clearFormData();
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -94,7 +137,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Authentication Required</h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
@@ -131,7 +174,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
             {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Reset Password'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white transition-colors"
           >
             <X className="w-6 h-6" />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, resetPasswordForEmail } from '../lib/supabase';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -86,8 +86,7 @@ export const useAuth = () => {
       throw new Error('Supabase not configured');
     }
 
-    const { error } = await supabase!.auth.resetPasswordForEmail(email);
-    if (error) throw error;
+    await resetPasswordForEmail(email);
   };
 
   const updateProfile = async (updates: { full_name?: string; avatar_url?: string }) => {

@@ -43,6 +43,13 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
     setIsOpen(false);
   };
 
+  const handleSignInClick = () => {
+    // Only show auth modal if user is not already authenticated
+    if (!user) {
+      onShowAuth();
+    }
+  };
+
   if (!isConfigured) {
     return (
       <div className="flex items-center gap-3">
@@ -61,7 +68,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
     return (
       <div className="flex items-center gap-3">
         <button
-          onClick={onShowAuth}
+          onClick={handleSignInClick}
           className="glass glass-hover rounded-xl px-4 py-2 flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-all duration-300"
         >
           <User className="w-5 h-5" />

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
@@ -14,8 +14,27 @@ export const isSupabaseConfigured = () => {
 
 // Create Supabase client only if configured
 export const supabase = isSupabaseConfigured() 
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    })
   : null;
+
+// Helper function to reset password with custom redirect
+export const resetPasswordForEmail = async (email: string) => {
+  if (!supabase) {
+    throw new Error('Supabase not configured');
+  }
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/confirm`
+  });
+  
+  if (error) throw error;
+};
 
 // Database schema types
 export interface SavedImage {
