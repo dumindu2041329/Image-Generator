@@ -121,6 +121,11 @@ export const useAuth = () => {
     });
 
     if (error) throw error;
+    
+    // Automatically sign out after email update
+    // This ensures security and forces re-authentication with the new email
+    await signOut();
+    
     return data;
   };
 

@@ -46,13 +46,6 @@ const ProfilePage: React.FC = () => {
     }
   }, [user]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isConfigured || !user) {
-      navigate('/');
-    }
-  }, [isConfigured, user, navigate]);
-
   // Validation functions
   const validateFullName = (name: string): string => {
     if (!name.trim()) return 'Full name is required';
@@ -158,8 +151,10 @@ const ProfilePage: React.FC = () => {
       await updateEmail(email);
       showSuccess(
         'Email Update Initiated',
-        'Please check both your old and new email addresses for confirmation links.'
+        'Please check both your old and new email addresses for confirmation links. You have been signed out for security.'
       );
+      // Navigate to home page since user will be logged out
+      navigate('/');
     } catch (error) {
       console.error('Email update error:', error);
       showError(
@@ -210,8 +205,126 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  if (!isConfigured || !user) {
-    return null;
+  // Show configuration message if Supabase is not configured
+  if (!isConfigured) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+        {/* Background decoration */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="glass border-b border-white/20 p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  onClick={() => navigate('/')}
+                  className="glass glass-hover rounded-xl p-3 text-gray-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <User className="w-8 h-8" />
+                    Profile Settings
+                  </h1>
+                  <p className="text-gray-400 mt-1">
+                    Authentication configuration required
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="glass rounded-2xl p-8 text-center">
+                <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-4">Authentication Not Configured</h2>
+                <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+                  To access profile settings and other authenticated features, you need to configure Supabase authentication. 
+                  Please set up your Supabase project and add the required environment variables.
+                </p>
+                <div className="glass rounded-xl p-6 mb-6 text-left">
+                  <h3 className="text-lg font-semibold text-white mb-3">Required Environment Variables:</h3>
+                  <div className="space-y-2 font-mono text-sm">
+                    <div className="text-blue-300">VITE_SUPABASE_URL=your_supabase_url</div>
+                    <div className="text-blue-300">VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/')}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300"
+                >
+                  Go Back to Home
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show authentication required message if user is not logged in
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+        {/* Background decoration */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="glass border-b border-white/20 p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  onClick={() => navigate('/')}
+                  className="glass glass-hover rounded-xl p-3 text-gray-400 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <User className="w-8 h-8" />
+                    Profile Settings
+                  </h1>
+                  <p className="text-gray-400 mt-1">
+                    Please sign in to access your profile
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="glass rounded-2xl p-8 text-center">
+                <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-4">Sign In Required</h2>
+                <p className="text-gray-300 mb-6">
+                  You need to be signed in to access your profile settings and manage your account.
+                </p>
+                <button
+                  onClick={() => navigate('/')}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300"
+                >
+                  Go Home to Sign In
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -341,6 +454,7 @@ const ProfilePage: React.FC = () => {
                   )}
                   <p className="text-sm text-gray-400 mt-2">
                     Changing your email will require verification from both your old and new email addresses.
+                    You will be automatically signed out for security after initiating the email change.
                   </p>
                 </div>
 

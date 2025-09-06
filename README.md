@@ -63,10 +63,12 @@ To enable user authentication and image saving, you'll need a Supabase project.
 3.  **Set Up Database Schema:**
     -   Go to the **SQL Editor** in your Supabase dashboard.
     -   Copy the contents of `src/sql/schema.sql` and run it to create the necessary tables and policies.
+    -   For profile image functionality, also run `src/sql/03_add_profile_images_bucket.sql` to create the profile images storage bucket.
 4.  **Set Up Storage:**
     -   Go to the **Storage** section.
     -   Create a new bucket named `generated_images`.
-    -   Set the bucket to be **public**.
+    -   Create a new bucket named `profile_images` (or run the SQL script from step 3).
+    -   Set both buckets to be **public**.
     -   Configure the bucket access policies to allow authenticated users to upload, select, update, and delete their own files.
 
 ### 4. Configure Environment Variables
