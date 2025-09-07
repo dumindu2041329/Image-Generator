@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import { ProfileImageService } from '../services/profileImageService';
+import { getUserId, getUserEmail, getUserFullName, getUserImageUrl } from '../lib/supabase';
 import ProfileImage from '../components/ProfileImage';
 
 const ProfilePage: React.FC = () => {
@@ -34,14 +35,20 @@ const ProfilePage: React.FC = () => {
     confirmPassword: ''
   });
 
+  // Get user details using helper functions
+  const userId = getUserId(user);
+  const userEmail = getUserEmail(user);
+  const userFullName = getUserFullName(user);
+  const userImageUrl = getUserImageUrl(user);
+
   // Initialize form with user data
   useEffect(() => {
     if (user) {
-      setFullName(user.user_metadata?.full_name || '');
-      setEmail(user.email || '');
-      setProfileImageUrl(ProfileImageService.getProfileImageUrl(user) || '');
+      setFullName(userFullName || '');
+      setEmail(userEmail || '');
+      setProfileImageUrl(userImageUrl || '');
     }
-  }, [user]);
+  }, [user, userFullName, userEmail, userImageUrl]);
 
   // Validation functions
   const validateFullName = (name: string): string => {
@@ -71,13 +78,13 @@ const ProfilePage: React.FC = () => {
 
   // Handle profile image upload
   const handleImageUpload = async (file: File) => {
-    if (!user) return;
+    if (!userId) return;
 
     setLoading(prev => ({ ...prev, image: true }));
     try {
-      const result = await ProfileImageService.uploadProfileImage(user.id, file);
+      const result = await ProfileImageService.uploadProfileImage(userId, file);
       
-      // Update user profile with new avatar URL
+      // Update user profile with new avatar URL (this will be handled by Clerk)
       await updateProfile({ avatar_url: result.url });
       
       setProfileImageUrl(result.url);
@@ -86,7 +93,7 @@ const ProfilePage: React.FC = () => {
         'Your profile image has been uploaded successfully.'
       );
     } catch (error) {
-      console.error('Profile image upload error:', error);
+      // Silent failure, but still show error to user
       showError(
         'Upload Failed',
         error instanceof Error ? error.message : 'Failed to upload profile image.'
@@ -116,7 +123,7 @@ const ProfilePage: React.FC = () => {
         'Your profile information has been updated successfully.'
       );
     } catch (error) {
-      console.error('Profile update error:', error);
+      // Silent failure, but still show error to user
       showError(
         'Update Failed',
         error instanceof Error ? error.message : 'Failed to update profile.'
@@ -136,7 +143,7 @@ const ProfilePage: React.FC = () => {
       return;
     }
 
-    if (email === user?.email) {
+    if (email === userEmail) {
       showInfo('No Changes', 'The email address is the same as your current email.');
       return;
     }
@@ -153,7 +160,7 @@ const ProfilePage: React.FC = () => {
       // Navigate to home page since user will be logged out
       navigate('/');
     } catch (error) {
-      console.error('Email update error:', error);
+      // Silent failure, but still show error to user
       showError(
         'Email Update Failed',
         error instanceof Error ? error.message : 'Failed to update email address.'
@@ -191,7 +198,7 @@ const ProfilePage: React.FC = () => {
         'Your password has been changed successfully.'
       );
     } catch (error) {
-      console.error('Password update error:', error);
+      // Silent failure, but still show error to user
       showError(
         'Password Update Failed',
         error instanceof Error ? error.message : 'Failed to update password.'
@@ -365,8 +372,8 @@ const ProfilePage: React.FC = () => {
               <div className="flex items-center gap-6">
                 <ProfileImage
                   imageUrl={profileImageUrl}
-                  fullName={user.user_metadata?.full_name}
-                  email={user.email}
+                  fullName={userFullName}
+                  email={userEmail}
                   size="xl"
                   editable={true}
                   onImageChange={handleImageUpload}
@@ -374,9 +381,9 @@ const ProfilePage: React.FC = () => {
                 />
                 <div>
                   <h3 className="text-lg font-medium text-white mb-2">
-                    {user.user_metadata?.full_name || 'User'}
+                    {userFullName || 'User'}
                   </h3>
-                  <p className="text-gray-400 mb-4">{user.email}</p>
+                  <p className="text-gray-400 mb-4">{userEmail}</p>
                   <p className="text-sm text-gray-300">
                     Click on your profile image to upload a new one. <br />
                     Supported formats: JPEG, PNG, WebP (max 5MB)

@@ -77,18 +77,18 @@ export class ImageGenerationService {
       this.validateImageUrlWithRetry(imageUrl, 2).catch(() => {
         // If validation fails, we don't need to do anything
         // The image will still be shown to the user
-        console.warn('Background validation failed for:', imageUrl);
+        // Silent failure - non-critical background validation
       });
 
       return generatedImage;
     } catch (error) {
-      console.error('Pollinations AI error:', error);
+      // Silent failure, will try alternative service
       
       // Try alternative free service
       try {
         return await this.generateWithAlternativeService(request);
       } catch (alternativeError) {
-        console.error('Alternative service error:', alternativeError);
+        // Silent failure, will use demo images as final fallback
         
         // Final fallback to demo images
         return this.generateDemoImage(request);

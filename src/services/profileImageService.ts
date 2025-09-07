@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, ClerkUser, getUserImageUrl } from '../lib/supabase';
 
 export interface ProfileImageUploadResult {
   url: string;
@@ -85,7 +85,7 @@ export class ProfileImageService {
         path: filePath
       };
     } catch (error) {
-      console.error('Profile image upload error:', error);
+      // Silent failure, but still throw for caller to handle
       throw error;
     }
   }
@@ -105,7 +105,7 @@ export class ProfileImageService {
         .list(userId);
 
       if (listError) {
-        console.warn('Failed to list existing profile images:', listError);
+        // Silent failure
         return;
       }
 
@@ -117,11 +117,11 @@ export class ProfileImageService {
           .remove(filePaths);
 
         if (deleteError) {
-          console.warn('Failed to delete existing profile images:', deleteError);
+          // Silent failure - non-critical operation
         }
       }
     } catch (error) {
-      console.warn('Error during profile image cleanup:', error);
+      // Silent failure - non-critical cleanup operation
     }
   }
 
@@ -142,16 +142,16 @@ export class ProfileImageService {
         throw new Error(`Delete failed: ${error.message}`);
       }
     } catch (error) {
-      console.error('Profile image delete error:', error);
+      // Silent failure, but still throw for caller to handle
       throw error;
     }
   }
 
   /**
-   * Gets the current profile image URL from user metadata
+   * Gets the current profile image URL from Clerk user
    */
-  static getProfileImageUrl(user: { user_metadata?: { avatar_url?: string } } | null): string | undefined {
-    return user?.user_metadata?.avatar_url;
+  static getProfileImageUrl(user: ClerkUser | null): string | undefined {
+    return getUserImageUrl(user);
   }
 
   /**
@@ -166,7 +166,7 @@ export class ProfileImageService {
       }
       return null;
     } catch (error) {
-      console.error('Error extracting file path from URL:', error);
+      // Silent failure
       return null;
     }
   }

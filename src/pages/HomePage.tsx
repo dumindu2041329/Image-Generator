@@ -78,7 +78,7 @@ const HomePage: React.FC = () => {
             'Your generated image has been saved to your history.'
           );
         } catch (saveError) {
-          console.warn('Failed to save image to history:', saveError);
+          // Silent failure with user notification
           showWarning(
             'Image Generated but Not Saved',
             'The image was created successfully but could not be saved to your history.'
@@ -86,7 +86,7 @@ const HomePage: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to generate image:', error);
+      // Handle error with user notification
       
       // Show error notification
       if (error instanceof Error) {

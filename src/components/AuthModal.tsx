@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { X, User } from 'lucide-react';
+import { SignIn, SignUp, useUser } from '@clerk/clerk-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 
@@ -11,133 +12,72 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'signin' }) => {
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>(initialMode);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [resetEmailSent, setResetEmailSent] = useState(false);
-
-  const { user, signIn, signUp, resetPassword, isConfigured } = useAuth();
-  const { showSuccess, showError, showInfo } = useToast();
+  const { user: clerkUser } = useUser();
+  const { isConfigured } = useAuth();
+  const { showSuccess } = useToast();
 
   // Close modal automatically if user becomes authenticated
   useEffect(() => {
-    if (user && isOpen) {
+    if (clerkUser && isOpen) {
+      showSuccess(
+        'Welcome!',
+        'You have successfully signed in to your account.'
+      );
       onClose();
     }
-  }, [user, isOpen, onClose]);
+  }, [clerkUser, isOpen, onClose, showSuccess]);
 
-  // Reset mode and clear form when modal opens/closes
+  // Reset mode when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setMode(initialMode);
-      setError('');
-      setResetEmailSent(false);
-    } else {
-      // Clear form data when modal closes
-      clearFormData();
+      // Check if there's a hash that should override the initialMode
+      const hash = window.location.hash;
+      if (hash === '#sign-up') {
+        setMode('signup');
+      } else if (hash === '#sign-in') {
+        setMode('signin');
+      } else {
+        setMode(initialMode);
+      }
     }
   }, [isOpen, initialMode]);
 
-  // Cleanup effect when component unmounts
+  // Handle hash changes for Clerk routing
   useEffect(() => {
-    return () => {
-      clearFormData();
-    };
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isConfigured) {
-      showError(
-        'Authentication Not Configured',
-        'Please connect your Supabase project to enable authentication.'
-      );
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      if (mode === 'signin') {
-        await signIn(email, password);
-        showSuccess(
-          'Welcome Back!',
-          'You have successfully signed in to your account.'
-        );
-        onClose();
-      } else if (mode === 'signup') {
-        await signUp(email, password, fullName);
-        showInfo(
-          'Account Created Successfully!',
-          'Please check your email to verify your account, then sign in.'
-        );
-        // Clear form and switch to signin after successful signup
-        clearFormData();
+    if (!isOpen) return; // Only process hash changes when modal is open
+    
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash === '#sign-up') {
+        setMode('signup');
+      } else if (hash === '#sign-in') {
         setMode('signin');
-        setError('Account created! Check your email to verify your account, then sign in.');
-      } else if (mode === 'reset') {
-        await resetPassword(email);
-        setResetEmailSent(true);
-        showSuccess(
-          'Password Reset Email Sent',
-          'Check your email for password reset instructions.'
-        );
       }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
-      showError(
-        'Authentication Error',
-        errorMessage
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const resetForm = () => {
-    setError('');
-    setResetEmailSent(false);
-    setShowPassword(false);
-    // Don't clear email/password/fullName to preserve user input
-  };
+    window.addEventListener('hashchange', handleHashChange);
+    // Check hash on initial render
+    handleHashChange();
 
-  const clearFormData = () => {
-    setEmail('');
-    setPassword('');
-    setFullName('');
-    setError('');
-    setResetEmailSent(false);
-    setShowPassword(false);
-  };
-
-  const switchMode = (newMode: 'signin' | 'signup' | 'reset') => {
-    setMode(newMode);
-    resetForm();
-    // Clear form data when switching modes
-    clearFormData();
-  };
-
-  const handleClose = () => {
-    // Clear all form data when closing modal for security
-    clearFormData();
-    onClose();
-  };
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      // Clear hash when modal closes
+      if (window.location.hash === '#sign-up' || window.location.hash === '#sign-in') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   if (!isConfigured) {
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="glass rounded-2xl p-8 max-w-md w-full border border-white/20">
+        <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full border border-gray-700">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Authentication Required</h2>
             <button
-              onClick={handleClose}
+              onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
@@ -150,15 +90,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
                 <User className="w-8 h-8 text-yellow-400" />
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Supabase Project Required</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">Clerk Configuration Required</h3>
             <p className="text-gray-300 mb-6">
-              To enable user authentication and save your generated images, please connect your Supabase project first.
+              To enable user authentication, please configure your Clerk project and add the publishable key to your environment variables.
             </p>
+            <div className="bg-gray-800 rounded-lg p-4 mb-6">
+              <code className="text-green-400 text-sm">
+                VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+              </code>
+            </div>
             <button
               onClick={onClose}
-              className="glass glass-hover rounded-xl px-6 py-3 text-blue-400 font-medium transition-all duration-300"
+              className="bg-gray-700 hover:bg-gray-600 rounded-xl px-6 py-3 text-blue-400 font-medium transition-all duration-300"
             >
-              Connect Supabase Project
+              Close
             </button>
           </div>
         </div>
@@ -168,158 +113,28 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="glass rounded-2xl p-8 max-w-md w-full border border-white/20">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white">
-            {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Reset Password'}
-          </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {mode === 'reset' && resetEmailSent ? (
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-green-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Check Your Email</h3>
-            <p className="text-gray-300 mb-6">
-              We've sent you a password reset link. Check your email and follow the instructions.
-            </p>
-            <button
-              onClick={() => switchMode('signin')}
-              className="text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              Back to Sign In
-            </button>
-          </div>
+      <div className="relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 text-gray-400 hover:text-white transition-colors bg-black/20 rounded-full p-2"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        
+        {mode === 'signin' ? (
+          <SignIn 
+            signUpUrl="#sign-up"
+            afterSignInUrl="/"
+            redirectUrl="/"
+            routing="hash"
+          />
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 glass rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 glass rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-            </div>
-
-            {mode !== 'reset' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 glass rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-200 text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Loading...' : 
-               mode === 'signin' ? 'Sign In' : 
-               mode === 'signup' ? 'Create Account' : 
-               'Send Reset Email'}
-            </button>
-
-            <div className="text-center space-y-2">
-              {mode === 'signin' ? (
-                <>
-                  <p className="text-gray-400">
-                    Don't have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={() => switchMode('signup')}
-                      className="text-blue-400 hover:text-blue-300 transition-colors"
-                    >
-                      Sign up
-                    </button>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => switchMode('reset')}
-                    className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
-                  >
-                    Forgot your password?
-                  </button>
-                </>
-              ) : mode === 'signup' ? (
-                <p className="text-gray-400">
-                  Already have an account?{' '}
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signin')}
-                    className="text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    Sign in
-                  </button>
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => switchMode('signin')}
-                  className="text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  Back to Sign In
-                </button>
-              )}
-            </div>
-          </form>
+          <SignUp 
+            signInUrl="#sign-in"
+            afterSignUpUrl="/"
+            redirectUrl="/"
+            routing="hash"
+          />
         )}
       </div>
     </div>

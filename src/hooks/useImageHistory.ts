@@ -1,39 +1,41 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, SavedImage } from '../lib/supabase';
+import { supabase, SavedImage, getUserId } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
 export const useImageHistory = () => {
   const [savedImages, setSavedImages] = useState<SavedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const { user, isConfigured } = useAuth();
+  
+  const userId = getUserId(user);
 
   const fetchSavedImages = useCallback(async () => {
-    if (!isConfigured || !user || !supabase) return;
+    if (!isConfigured || !userId || !supabase) return;
 
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('saved_images')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSavedImages(data || []);
     } catch (error) {
-      console.error('Error fetching saved images:', error);
+      // Silent failure - loading state will be set to false
     } finally {
       setLoading(false);
     }
-  }, [isConfigured, user]);
+  }, [isConfigured, userId]);
 
   useEffect(() => {
-    if (user && isConfigured) {
+    if (userId && isConfigured) {
       fetchSavedImages();
     } else {
       setSavedImages([]);
     }
-  }, [user, isConfigured, fetchSavedImages]);
+  }, [userId, isConfigured, fetchSavedImages]);
 
   const saveImage = async (
     prompt: string,
@@ -41,8 +43,8 @@ export const useImageHistory = () => {
     aspectRatio: '1:1' | '16:9' | '4:3',
     style: 'vivid' | 'natural'
   ): Promise<SavedImage | null> => {
-    if (!isConfigured || !user || !supabase) {
-      console.warn('Cannot save image: Supabase not configured or user not logged in');
+    if (!isConfigured || !userId || !supabase) {
+      // Silent failure - authentication not configured
       return null;
     }
 
@@ -55,7 +57,7 @@ export const useImageHistory = () => {
       const imageBlob = await response.blob();
       const fileExt = imageBlob.type.split('/')[1] || 'jpg';
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      const filePath = `${userId}/${fileName}`;
 
       // 2. Upload the blob to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -77,7 +79,7 @@ export const useImageHistory = () => {
 
       // 4. Save the metadata to the database, including the storage path
       const imageData = {
-        user_id: user.id,
+        user_id: userId,
         prompt,
         image_url: publicUrl,
         aspect_ratio: aspectRatio,
@@ -99,13 +101,13 @@ export const useImageHistory = () => {
       setSavedImages(prev => [data, ...prev]);
       return data;
     } catch (error) {
-      console.error('Error saving image to Supabase:', error);
+      // Silent failure - return null to indicate failure
       return null;
     }
   };
 
   const deleteImage = async (imageId: string) => {
-    if (!isConfigured || !user || !supabase) return;
+    if (!isConfigured || !userId || !supabase) return;
 
     try {
       const imageToDelete = savedImages.find(img => img.id === imageId);
@@ -116,7 +118,7 @@ export const useImageHistory = () => {
 
       // Fallback for older images that might not have the path stored
       if (!filePathToDelete) {
-        console.warn(`storage_file_path not found for image ${imageId}. Falling back to URL parsing.`);
+        // Fallback to URL parsing without logging
         const urlParts = imageToDelete.image_url.split('/');
         const bucketNameIndex = urlParts.indexOf('generated_images');
         if (bucketNameIndex !== -1) {
@@ -127,7 +129,7 @@ export const useImageHistory = () => {
       if (filePathToDelete) {
         await supabase.storage.from('generated_images').remove([filePathToDelete]);
       } else {
-        console.error(`Could not determine file path for image ${imageId}. Skipping storage deletion.`);
+        // Skip storage deletion silently if path cannot be determined
       }
       
       // 2. Delete from database
@@ -135,19 +137,19 @@ export const useImageHistory = () => {
         .from('saved_images')
         .delete()
         .eq('id', imageId)
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       if (dbError) throw dbError;
 
       setSavedImages(prev => prev.filter(img => img.id !== imageId));
     } catch (error) {
-      console.error('Error deleting image:', error);
+      // Silent failure, but still throw for caller to handle
       throw error;
     }
   };
 
   const toggleFavorite = async (imageId: string) => {
-    if (!isConfigured || !user || !supabase) return;
+    if (!isConfigured || !userId || !supabase) return;
 
     try {
       const image = savedImages.find(img => img.id === imageId);
@@ -157,7 +159,7 @@ export const useImageHistory = () => {
         .from('saved_images')
         .update({ is_favorite: !image.is_favorite })
         .eq('id', imageId)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .select()
         .single();
 
@@ -167,7 +169,7 @@ export const useImageHistory = () => {
         prev.map(img => (img.id === imageId ? data : img))
       );
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      // Silent failure, but still throw for caller to handle
       throw error;
     }
   };

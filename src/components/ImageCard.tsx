@@ -26,7 +26,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         'Your image is being downloaded.'
       );
     } catch (error) {
-      console.error('Download failed:', error);
+      // Silent failure with user notification
       showError(
         'Download Failed',
         'Could not download the image. Please try again.'
@@ -43,7 +43,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         'The image prompt has been copied to your clipboard.'
       );
     } catch (err) {
-      console.error('Failed to copy prompt:', err);
+      // Silent failure with user notification
       setCopyStatus('error');
       showError(
         'Copy Failed',

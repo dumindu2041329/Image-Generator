@@ -3,6 +3,7 @@ import { User, LogOut, History, ChevronDown, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
+import { getUserFullName, getUserEmail, getUserImageUrl } from '../lib/supabase';
 import ProfileImage from './ProfileImage';
 
 interface UserMenuProps {
@@ -24,7 +25,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
         'You have been signed out of your account.'
       );
     } catch (error) {
-      console.error('Error signing out:', error);
+      // Silent failure with user notification
       showError(
         'Sign Out Failed',
         'An error occurred while signing out. Please try again.'
@@ -78,6 +79,10 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
     );
   }
 
+  const userFullName = getUserFullName(user);
+  const userEmail = getUserEmail(user);
+  const userImageUrl = getUserImageUrl(user);
+
   return (
     <div className="relative">
       <button
@@ -85,13 +90,13 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
         className="glass glass-hover rounded-xl px-4 py-2 flex items-center gap-2 text-white hover:text-blue-300 transition-all duration-300"
       >
         <ProfileImage
-          imageUrl={user.user_metadata?.avatar_url}
-          fullName={user.user_metadata?.full_name}
-          email={user.email}
+          imageUrl={userImageUrl}
+          fullName={userFullName}
+          email={userEmail}
           size="sm"
         />
         <span className="hidden sm:inline text-sm">
-          {user.user_metadata?.full_name || user.email?.split('@')[0]}
+          {userFullName || userEmail?.split('@')[0] || 'User'}
         </span>
         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -107,16 +112,16 @@ const UserMenu: React.FC<UserMenuProps> = ({ onShowAuth }) => {
               <div className="px-3 py-3 border-b border-white/10 mb-2">
                 <div className="flex items-center gap-3">
                   <ProfileImage
-                    imageUrl={user.user_metadata?.avatar_url}
-                    fullName={user.user_metadata?.full_name}
-                    email={user.email}
+                    imageUrl={userImageUrl}
+                    fullName={userFullName}
+                    email={userEmail}
                     size="md"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white font-medium truncate">
-                      {user.user_metadata?.full_name || 'User'}
+                      {userFullName || 'User'}
                     </p>
-                    <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                    <p className="text-xs text-gray-400 truncate">{userEmail}</p>
                   </div>
                 </div>
               </div>

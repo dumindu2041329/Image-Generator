@@ -15,8 +15,7 @@ export const copyToClipboard = async (text: string): Promise<void> => {
       return; // Success!
     } catch (err) {
       // It's common for this to fail in sandboxed environments.
-      // We'll log a warning and proceed to the fallback method.
-      console.warn('Clipboard API write failed, trying fallback:', err);
+      // Silently proceed to the fallback method without logging.
     }
   }
 

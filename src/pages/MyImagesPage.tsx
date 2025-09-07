@@ -9,10 +9,9 @@ import ConfirmDialog from '../components/ConfirmDialog';
 const MyImagesPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; imageId: string; prompt: string }>({ 
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; imageId: string }>({ 
     isOpen: false, 
-    imageId: '', 
-    prompt: '' 
+    imageId: ''
   });
   const { savedImages, loading, deleteImage, toggleFavorite } = useImageHistory();
   const { user, isConfigured } = useAuth();
@@ -25,7 +24,7 @@ const MyImagesPage: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const handleDownload = (imageUrl: string, prompt: string, id: string) => {
+  const handleDownload = (imageUrl: string, id: string) => {
     try {
       const link = document.createElement('a');
       link.href = imageUrl;
@@ -39,7 +38,7 @@ const MyImagesPage: React.FC = () => {
         'Your image is being downloaded.'
       );
     } catch (error) {
-      console.error('Download failed:', error);
+      // Silent failure with user notification
       showError(
         'Download Failed',
         'Could not download the image. Please try again.'
@@ -47,21 +46,21 @@ const MyImagesPage: React.FC = () => {
     }
   };
 
-  const handleDelete = (imageId: string, prompt: string) => {
-    setDeleteConfirm({ isOpen: true, imageId, prompt });
+  const handleDelete = (imageId: string) => {
+    setDeleteConfirm({ isOpen: true, imageId });
   };
 
   const confirmDelete = async () => {
     try {
       await deleteImage(deleteConfirm.imageId);
-      setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+      setDeleteConfirm({ isOpen: false, imageId: '' });
       showSuccess(
         'Image Deleted',
         'The image has been permanently removed from your collection.'
       );
     } catch (error) {
-      console.error('Failed to delete image:', error);
-      setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+      // Silent failure with user notification
+      setDeleteConfirm({ isOpen: false, imageId: '' });
       showError(
         'Delete Failed',
         'Could not delete the image. Please try again.'
@@ -84,7 +83,7 @@ const MyImagesPage: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error('Failed to toggle favorite:', error);
+      // Silent failure with user notification
       showError(
         'Failed to Update Favorite',
         'Could not update the favorite status. Please try again.'
@@ -93,7 +92,7 @@ const MyImagesPage: React.FC = () => {
   };
 
   const cancelDelete = () => {
-    setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+    setDeleteConfirm({ isOpen: false, imageId: '' });
   };
 
   if (!isConfigured || !user) {
@@ -254,14 +253,14 @@ const MyImagesPage: React.FC = () => {
                           <Heart className={`w-4 h-4 ${image.is_favorite ? 'fill-current' : ''}`} />
                         </button>
                         <button
-                          onClick={() => handleDownload(image.image_url, image.prompt, image.id)}
+                          onClick={() => handleDownload(image.image_url, image.id)}
                           className="glass rounded-full p-2 text-gray-400 hover:text-blue-400 transition-colors duration-300"
                           title="Download image"
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(image.id, image.prompt)}
+                          onClick={() => handleDelete(image.id)}
                           className="glass rounded-full p-2 text-gray-400 hover:text-red-400 transition-colors duration-300"
                           title="Delete image"
                         >
@@ -297,7 +296,7 @@ const MyImagesPage: React.FC = () => {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Image"
-        message={`Are you sure you want to delete this image? This action cannot be undone.\n\nPrompt: "${deleteConfirm.prompt.length > 60 ? deleteConfirm.prompt.substring(0, 60) + '...' : deleteConfirm.prompt}"`}
+        message="Are you sure you want to delete this image? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}

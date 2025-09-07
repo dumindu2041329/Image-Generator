@@ -1,5 +1,5 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ClerkProvider } from '@clerk/clerk-react';
 import HomePage from './pages/HomePage';
 import MyImagesPage from './pages/MyImagesPage';
 import ProfilePage from './pages/ProfilePage';
@@ -7,21 +7,42 @@ import AuthConfirmPage from './pages/AuthConfirmPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/ToastContainer';
+import { clerkPubKey } from './lib/clerk';
 
 function App() {
+  if (!clerkPubKey || clerkPubKey.includes('YOUR_CLERK_PUBLISHABLE_KEY')) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full border border-gray-700 text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Clerk Configuration Required</h1>
+          <p className="text-gray-300 mb-6">
+            Please add your Clerk publishable key to the .env file to enable authentication.
+          </p>
+          <div className="bg-gray-800 rounded-lg p-4 text-left">
+            <code className="text-green-400 text-sm">
+              VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+            </code>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <ToastProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/my-images" element={<MyImagesPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/auth/confirm" element={<AuthConfirmPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-        </Routes>
-        <ToastContainer />
-      </Router>
-    </ToastProvider>
+    <ClerkProvider publishableKey={clerkPubKey}>
+      <ToastProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/my-images" element={<MyImagesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/auth/confirm" element={<AuthConfirmPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+          </Routes>
+          <ToastContainer />
+        </Router>
+      </ToastProvider>
+    </ClerkProvider>
   );
 }
 

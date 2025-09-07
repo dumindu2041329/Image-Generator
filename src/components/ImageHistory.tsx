@@ -12,10 +12,9 @@ interface ImageHistoryProps {
 const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; imageId: string; prompt: string }>({ 
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; imageId: string }>({ 
     isOpen: false, 
-    imageId: '', 
-    prompt: '' 
+    imageId: ''
   });
   const { savedImages, loading, deleteImage, toggleFavorite } = useImageHistory();
   const { user, isConfigured } = useAuth();
@@ -26,7 +25,7 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
     return matchesFilter && matchesSearch;
   });
 
-  const handleDownload = (imageUrl: string, prompt: string, id: string) => {
+  const handleDownload = (imageUrl: string, id: string) => {
     const link = document.createElement('a');
     link.href = imageUrl;
     link.download = `ai-generated-${id}.jpg`;
@@ -35,22 +34,22 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
     document.body.removeChild(link);
   };
 
-  const handleDelete = (imageId: string, prompt: string) => {
-    setDeleteConfirm({ isOpen: true, imageId, prompt });
+  const handleDelete = (imageId: string) => {
+    setDeleteConfirm({ isOpen: true, imageId });
   };
 
   const confirmDelete = async () => {
     try {
       await deleteImage(deleteConfirm.imageId);
-      setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+      setDeleteConfirm({ isOpen: false, imageId: '' });
     } catch (error) {
-      console.error('Failed to delete image:', error);
-      setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+      // Silent failure - UI state is reset regardless
+      setDeleteConfirm({ isOpen: false, imageId: '' });
     }
   };
 
   const cancelDelete = () => {
-    setDeleteConfirm({ isOpen: false, imageId: '', prompt: '' });
+    setDeleteConfirm({ isOpen: false, imageId: '' });
   };
 
   if (!isOpen) return null;
@@ -201,14 +200,14 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
                           <Heart className={`w-4 h-4 ${image.is_favorite ? 'fill-current' : ''}`} />
                         </button>
                         <button
-                          onClick={() => handleDownload(image.image_url, image.prompt, image.id)}
+                          onClick={() => handleDownload(image.image_url, image.id)}
                           className="glass rounded-full p-2 text-gray-400 hover:text-blue-400 transition-colors duration-300"
                           title="Download image"
                         >
                           <Download className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(image.id, image.prompt)}
+                          onClick={() => handleDelete(image.id)}
                           className="glass rounded-full p-2 text-gray-400 hover:text-red-400 transition-colors duration-300"
                           title="Delete image"
                         >
@@ -244,7 +243,7 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="Delete Image"
-        message={`Are you sure you want to delete this image? This action cannot be undone.\n\nPrompt: "${deleteConfirm.prompt.length > 60 ? deleteConfirm.prompt.substring(0, 60) + '...' : deleteConfirm.prompt}"`}
+        message="Are you sure you want to delete this image? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}
