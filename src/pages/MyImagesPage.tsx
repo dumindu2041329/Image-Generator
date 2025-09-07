@@ -9,6 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 const MyImagesPage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; imageId: string }>({ 
     isOpen: false, 
     imageId: ''
@@ -24,25 +25,46 @@ const MyImagesPage: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const handleDownload = (imageUrl: string, id: string) => {
+  const handleDownload = async (imageUrl: string, id: string) => {
+    if (downloadingIds.has(id)) return;
+    
+    setDownloadingIds(prev => new Set(prev).add(id));
     try {
+      // Fetch the image as a blob to handle CORS issues
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
-      link.href = imageUrl;
+      link.href = url;
       link.download = `ai-generated-${id}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the object URL
+      window.URL.revokeObjectURL(url);
       
       showSuccess(
         'Download Started',
         'Your image is being downloaded.'
       );
     } catch (error) {
-      // Silent failure with user notification
+      console.error('Download error:', error);
       showError(
         'Download Failed',
         'Could not download the image. Please try again.'
       );
+    } finally {
+      setDownloadingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
 
@@ -263,10 +285,19 @@ const MyImagesPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => handleDownload(image.image_url, image.id)}
-                          className="glass rounded-full p-2 text-gray-400 hover:text-blue-400 transition-colors duration-300"
-                          title="Download image"
+                          disabled={downloadingIds.has(image.id)}
+                          className={`glass rounded-full p-2 transition-colors duration-300 ${
+                            downloadingIds.has(image.id)
+                              ? 'opacity-50 cursor-not-allowed text-gray-500'
+                              : 'text-gray-400 hover:text-blue-400'
+                          }`}
+                          title={downloadingIds.has(image.id) ? 'Downloading...' : 'Download image'}
                         >
-                          <Download className="w-4 h-4" />
+                          {downloadingIds.has(image.id) ? (
+                            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
                         </button>
                         <button
                           onClick={() => handleDelete(image.id)}

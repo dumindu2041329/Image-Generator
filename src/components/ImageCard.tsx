@@ -3,6 +3,7 @@ import { Download, Copy, Clock, Check, RectangleHorizontal } from 'lucide-react'
 import { GeneratedImage } from '../types';
 import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../contexts/ToastContext';
+import { downloadImage, generateImageFilename } from '../utils/download';
 
 interface ImageCardProps {
   image: GeneratedImage;
@@ -10,28 +11,34 @@ interface ImageCardProps {
 
 const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isDownloading, setIsDownloading] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  const handleDownload = () => {
-    try {
-      const link = document.createElement('a');
-      link.href = image.url;
-      link.download = `ai-generated-${image.aspectRatio || '1:1'}-${image.id}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showSuccess(
-        'Download Started',
-        'Your image is being downloaded.'
-      );
-    } catch (error) {
-      // Silent failure with user notification
-      showError(
-        'Download Failed',
-        'Could not download the image. Please try again.'
-      );
-    }
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    
+    setIsDownloading(true);
+    
+    const filename = generateImageFilename(image.aspectRatio || '1:1', image.id);
+    
+    await downloadImage(
+      image.url,
+      filename,
+      () => {
+        showSuccess(
+          'Download Started',
+          'Your image is being downloaded.'
+        );
+      },
+      (error) => {
+        showError(
+          'Download Failed',
+          'Could not download the image. Please try again.'
+        );
+      }
+    );
+    
+    setIsDownloading(false);
   };
 
   const handleCopyPrompt = async () => {
@@ -133,10 +140,19 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <button
             onClick={handleDownload}
-            className="glass glass-hover rounded-full p-2 text-white hover:text-blue-400 transition-colors duration-300"
-            title="Download image"
+            disabled={isDownloading}
+            className={`glass glass-hover rounded-full p-2 text-white transition-colors duration-300 ${
+              isDownloading 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:text-blue-400'
+            }`}
+            title={isDownloading ? 'Downloading...' : 'Download image'}
           >
-            <Download className="w-4 h-4" />
+            {isDownloading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
           </button>
           <button
             onClick={handleCopyPrompt}

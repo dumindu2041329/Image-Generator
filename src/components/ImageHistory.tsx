@@ -25,13 +25,37 @@ const ImageHistory: React.FC<ImageHistoryProps> = ({ isOpen, onClose }) => {
     return matchesFilter && matchesSearch;
   });
 
-  const handleDownload = (imageUrl: string, id: string) => {
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `ai-generated-${id}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (imageUrl: string, id: string) => {
+    try {
+      // Fetch the image as a blob to handle CORS issues
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ai-generated-${id}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the object URL
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      // Fallback to direct link if blob download fails
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `ai-generated-${id}.jpg`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleDelete = (imageId: string) => {
