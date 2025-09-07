@@ -30,42 +30,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   // Reset mode when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // Check if there's a hash that should override the initialMode
-      const hash = window.location.hash;
-      if (hash === '#sign-up') {
-        setMode('signup');
-      } else if (hash === '#sign-in') {
-        setMode('signin');
-      } else {
-        setMode(initialMode);
-      }
+      setMode(initialMode);
     }
   }, [isOpen, initialMode]);
 
-  // Handle hash changes for Clerk routing
+  // Listen for Clerk virtual navigation events from Provider router hooks
   useEffect(() => {
-    if (!isOpen) return; // Only process hash changes when modal is open
-    
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash === '#sign-up') {
-        setMode('signup');
-      } else if (hash === '#sign-in') {
-        setMode('signin');
-      }
+    if (!isOpen) return;
+
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      const to = custom.detail || '';
+      if (to.includes('sign-up')) setMode('signup');
+      if (to.includes('sign-in')) setMode('signin');
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    // Check hash on initial render
-    handleHashChange();
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-      // Clear hash when modal closes
-      if (window.location.hash === '#sign-up' || window.location.hash === '#sign-in') {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
-    };
+    window.addEventListener('clerk:navigate', handler as EventListener);
+    return () => window.removeEventListener('clerk:navigate', handler as EventListener);
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -123,17 +104,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
         
         {mode === 'signin' ? (
           <SignIn 
-            signUpUrl="#sign-up"
+            signUpUrl="/sign-up"
             afterSignInUrl="/"
             redirectUrl="/"
-            routing="hash"
+            routing="virtual"
           />
         ) : (
           <SignUp 
-            signInUrl="#sign-in"
+            signInUrl="/sign-in"
             afterSignUpUrl="/"
             redirectUrl="/"
-            routing="hash"
+            routing="virtual"
           />
         )}
       </div>

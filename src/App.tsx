@@ -29,7 +29,19 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={clerkPubKey}>
+    <ClerkProvider 
+      publishableKey={clerkPubKey}
+      routerPush={(to) => {
+        // Notify auth modal to switch views without changing the URL
+        window.dispatchEvent(new CustomEvent('clerk:navigate', { detail: to }));
+      }}
+      routerReplace={(to) => {
+        window.dispatchEvent(new CustomEvent('clerk:navigate', { detail: to }));
+      }}
+      routerState={(state) => {
+        // No-op for state in virtual routing scenario
+      }}
+    >
       <ToastProvider>
         <Router>
           <Routes>
