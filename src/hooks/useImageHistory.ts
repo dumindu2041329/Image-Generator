@@ -24,7 +24,16 @@ export const useImageHistory = () => {
         console.error('Fetch saved images error:', error);
         throw error;
       }
-      setSavedImages(data || []);
+      // Filter out any null or invalid entries
+      const validData = (data || []).filter((item: any) => {
+        if (!item || typeof item !== 'object' || !item.id) {
+          console.warn('Invalid image data found:', item);
+          return false;
+        }
+        return true;
+      });
+      console.log('Valid images loaded:', validData.length, 'out of', (data || []).length);
+      setSavedImages(validData);
     } catch (error) {
       // Log the error for debugging
       console.error('Fetch saved images error:', error);
@@ -121,7 +130,9 @@ export const useImageHistory = () => {
         throw insertError;
       }
 
-      setSavedImages(prev => [data, ...prev]);
+      if (data && typeof data === 'object' && data.id) {
+        setSavedImages(prev => [data, ...prev]);
+      }
       return data;
     } catch (error) {
       // Log the error for debugging
@@ -213,22 +224,47 @@ export const useImageHistory = () => {
 
     try {
       const image = savedImages.find(img => img.id === imageId);
-      if (!image) return;
+      if (!image) {
+        console.warn('Image not found for favorite toggle:', imageId);
+        return;
+      }
+
+      const newFavoriteStatus = !image.is_favorite;
+      console.log('Toggling favorite for image:', imageId, 'from', image.is_favorite, 'to', newFavoriteStatus);
 
       const { data, error } = await supabase
         .from('saved_images')
-        .update({ is_favorite: !image.is_favorite })
+        .update({ is_favorite: newFavoriteStatus })
         .eq('id', imageId)
         .eq('user_id', userId)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating favorite status:', error);
+        throw error;
+      }
 
+      console.log('Database update successful, received data:', data);
+
+      // Update the state with the new data
       setSavedImages(prev =>
-        prev.map(img => (img.id === imageId ? data : img))
+        prev.map(img => {
+          if (img.id === imageId) {
+            // Use the data from the database if it's valid, otherwise update locally
+            if (data && typeof data === 'object' && data.id) {
+              console.log('Updating image with database data:', data);
+              return data;
+            } else {
+              console.log('Updating image locally with new favorite status');
+              return { ...img, is_favorite: newFavoriteStatus };
+            }
+          }
+          return img;
+        })
       );
     } catch (error) {
+      console.error('Toggle favorite error:', error);
       // Silent failure, but still throw for caller to handle
       throw error;
     }

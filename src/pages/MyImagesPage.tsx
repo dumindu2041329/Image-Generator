@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { History, Heart, Trash2, Download, Filter, Search, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useImageHistory } from '../hooks/useImageHistory';
@@ -19,9 +19,20 @@ const MyImagesPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
+  // Debug: Log when savedImages changes
+  useEffect(() => {
+    console.log('savedImages state updated:', savedImages.length, 'images');
+    savedImages.forEach((img, index) => {
+      console.log(`Image ${index}:`, { id: img.id, is_favorite: img.is_favorite, prompt: img.prompt?.substring(0, 50) });
+    });
+  }, [savedImages]);
+
   const filteredImages = savedImages.filter(image => {
+    // Skip null or undefined images
+    if (!image) return false;
+    
     const matchesFilter = filter === 'all' || (filter === 'favorites' && image.is_favorite);
-    const matchesSearch = image.prompt.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = image.prompt?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false;
     return matchesFilter && matchesSearch;
   });
 
@@ -101,7 +112,10 @@ const MyImagesPage: React.FC = () => {
 
   const handleToggleFavorite = async (imageId: string, currentFavoriteStatus: boolean) => {
     try {
+      console.log('Starting favorite toggle for image:', imageId, 'current status:', currentFavoriteStatus);
       await toggleFavorite(imageId);
+      console.log('Favorite toggle completed for image:', imageId);
+      
       if (currentFavoriteStatus) {
         showSuccess(
           'Removed from Favorites',
@@ -114,6 +128,7 @@ const MyImagesPage: React.FC = () => {
         );
       }
     } catch (error) {
+      console.error('Error in handleToggleFavorite:', error);
       // Silent failure with user notification
       showError(
         'Failed to Update Favorite',
@@ -260,12 +275,12 @@ const MyImagesPage: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredImages.map((image) => (
+                {filteredImages.filter(image => image).map((image) => (
                   <div key={image.id} className="glass rounded-2xl overflow-hidden group">
                     <div className="relative aspect-square">
                       <img
-                        src={image.image_url}
-                        alt={image.prompt}
+                        src={image.image_url || ''}
+                        alt={image.prompt || 'Generated image'}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -273,7 +288,7 @@ const MyImagesPage: React.FC = () => {
                       {/* Action buttons */}
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button
-                          onClick={() => handleToggleFavorite(image.id, image.is_favorite)}
+                          onClick={() => handleToggleFavorite(image.id, image.is_favorite || false)}
                           className={`glass rounded-full p-2 transition-colors duration-300 ${
                             image.is_favorite 
                               ? 'text-pink-400 bg-pink-500/20' 
@@ -284,7 +299,7 @@ const MyImagesPage: React.FC = () => {
                           <Heart className={`w-4 h-4 ${image.is_favorite ? 'fill-current' : ''}`} />
                         </button>
                         <button
-                          onClick={() => handleDownload(image.image_url, image.id)}
+                          onClick={() => handleDownload(image.image_url || '', image.id)}
                           disabled={downloadingIds.has(image.id)}
                           className={`glass rounded-full p-2 transition-colors duration-300 ${
                             downloadingIds.has(image.id)
@@ -317,11 +332,11 @@ const MyImagesPage: React.FC = () => {
                     </div>
                     
                     <div className="p-4">
-                      <p className="text-gray-300 text-sm line-clamp-2 mb-2">{image.prompt}</p>
+                      <p className="text-gray-300 text-sm line-clamp-2 mb-2">{image.prompt || 'No prompt available'}</p>
                       <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{image.aspect_ratio}</span>
-                        <span>{image.style}</span>
-                        <span>{new Date(image.created_at).toLocaleDateString()}</span>
+                        <span>{image.aspect_ratio || 'Unknown'}</span>
+                        <span>{image.style || 'Unknown'}</span>
+                        <span>{image.created_at ? new Date(image.created_at).toLocaleDateString() : 'Unknown date'}</span>
                       </div>
                     </div>
                   </div>
