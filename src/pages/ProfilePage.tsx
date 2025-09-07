@@ -3,13 +3,13 @@ import { ArrowLeft, User, Mail, Lock, Save, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
-import { ProfileImageService } from '../services/profileImageService';
+// Removed Supabase-based avatar storage in favor of Clerk-hosted avatars
 import { getUserId, getUserEmail, getUserFullName, getUserImageUrl } from '../lib/supabase';
 import ProfileImage from '../components/ProfileImage';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isConfigured, updateProfile, updateEmail, updatePassword } = useAuth();
+  const { user, isConfigured, updateProfile, updateEmail, verifyEmailUpdate, updatePassword, updateProfileImage } = useAuth();
   const { showSuccess, showError, showInfo } = useToast();
 
   // Form states
@@ -17,6 +17,9 @@ const ProfilePage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const [emailVerificationCode, setEmailVerificationCode] = useState('');
+  const [awaitingEmailVerification, setAwaitingEmailVerification] = useState(false);
   
   // UI states
   const [profileImageUrl, setProfileImageUrl] = useState<string>('');
@@ -41,14 +44,14 @@ const ProfilePage: React.FC = () => {
   const userFullName = getUserFullName(user);
   const userImageUrl = getUserImageUrl(user);
 
-  // Initialize form with user data
+  // Initialize form with user data (only when the signed-in user changes)
   useEffect(() => {
-    if (user) {
+    if (userId) {
       setFullName(userFullName || '');
       setEmail(userEmail || '');
       setProfileImageUrl(userImageUrl || '');
     }
-  }, [user, userFullName, userEmail, userImageUrl]);
+  }, [userId]);
 
   // Validation functions
   const validateFullName = (name: string): string => {
@@ -76,24 +79,20 @@ const ProfilePage: React.FC = () => {
     return '';
   };
 
-  // Handle profile image upload
+  // Handle profile image upload via Clerk only
   const handleImageUpload = async (file: File) => {
     if (!userId) return;
 
     setLoading(prev => ({ ...prev, image: true }));
     try {
-      const result = await ProfileImageService.uploadProfileImage(userId, file);
-      
-      // Update user profile with new avatar URL (this will be handled by Clerk)
-      await updateProfile({ avatar_url: result.url });
-      
-      setProfileImageUrl(result.url);
+      const result = await updateProfileImage(file);
+      const newUrl = result?.user?.imageUrl || profileImageUrl;
+      setProfileImageUrl(newUrl);
       showSuccess(
         'Profile Image Updated',
-        'Your profile image has been uploaded successfully.'
+        'Your profile image has been updated successfully.'
       );
     } catch (error) {
-      // Silent failure, but still show error to user
       showError(
         'Upload Failed',
         error instanceof Error ? error.message : 'Failed to upload profile image.'
@@ -155,15 +154,33 @@ const ProfilePage: React.FC = () => {
       await updateEmail(email);
       showSuccess(
         'Email Update Initiated',
-        'Please check both your old and new email addresses for confirmation links. You have been signed out for security.'
+        'Please check your new email address for a verification code to confirm the change.'
       );
-      // Navigate to home page since user will be logged out
-      navigate('/');
+      setAwaitingEmailVerification(true);
     } catch (error) {
       // Silent failure, but still show error to user
       showError(
         'Email Update Failed',
         error instanceof Error ? error.message : 'Failed to update email address.'
+      );
+    } finally {
+      setLoading(prev => ({ ...prev, email: false }));
+    }
+  };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailVerificationCode.trim()) return;
+    setLoading(prev => ({ ...prev, email: true }));
+    try {
+      await verifyEmailUpdate(email, emailVerificationCode.trim());
+      showSuccess('Email Updated', 'Your email address has been verified and set as primary.');
+      setAwaitingEmailVerification(false);
+      setEmailVerificationCode('');
+    } catch (error) {
+      showError(
+        'Verification Failed',
+        error instanceof Error ? error.message : 'Failed to verify the new email address.'
       );
     } finally {
       setLoading(prev => ({ ...prev, email: false }));
@@ -456,8 +473,7 @@ const ProfilePage: React.FC = () => {
                     <p className="text-red-400 text-sm mt-1">{errors.email}</p>
                   )}
                   <p className="text-sm text-gray-400 mt-2">
-                    Changing your email will require verification from both your old and new email addresses.
-                    You will be automatically signed out for security after initiating the email change.
+                    Changing your email will require verification with a code sent to your new email address.
                   </p>
                 </div>
 
@@ -474,6 +490,41 @@ const ProfilePage: React.FC = () => {
                   {loading.email ? 'Updating...' : 'Update Email'}
                 </button>
               </form>
+
+              {awaitingEmailVerification && (
+                <form onSubmit={handleVerifyEmail} className="space-y-4 mt-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Verification Code (sent to {email})
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={emailVerificationCode}
+                        onChange={(e) => setEmailVerificationCode(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 glass rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter the code from your email"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Enter the 6-digit code you received to confirm your new email address.
+                    </p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading.email}
+                    className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-teal-600 text-white px-6 py-3 rounded-xl font-medium hover:from-green-600 hover:to-teal-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading.email ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Mail className="w-5 h-5" />
+                    )}
+                    {loading.email ? 'Verifying...' : 'Verify Email'}
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Password Section */}

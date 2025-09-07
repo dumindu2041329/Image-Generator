@@ -26,14 +26,22 @@ export const initializeClerk = async () => {
 
 // Helper function to get Clerk JWT token for Supabase RLS
 export const getClerkToken = async () => {
-  if (!clerk?.user) {
-    return null;
-  }
-  
   try {
-    // Get JWT token with Supabase template
-    const token = await clerk.session?.getToken({ template: 'supabase' });
-    return token;
+    // Prefer the React Provider's global Clerk instance if available
+    const globalClerk: any = (window as any)?.Clerk;
+
+    if (globalClerk?.session) {
+      const token = await globalClerk.session.getToken({ template: 'supabase' });
+      if (token) return token;
+    }
+
+    // Fallback to local Clerk instance (requires manual initialization)
+    if (clerk?.session) {
+      const token = await clerk.session.getToken({ template: 'supabase' });
+      if (token) return token;
+    }
+
+    return null;
   } catch (error) {
     // Silent failure - just return null without logging to console
     return null;

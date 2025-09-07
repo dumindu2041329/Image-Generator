@@ -60,35 +60,87 @@ export class ImageGenerationService {
       const dimensions = this.getImageDimensions(aspectRatio);
       const seed = Math.floor(Math.random() * 1000000); // Random seed for variety
       
-      // Construct the Pollinations API URL
-      const imageUrl = `${baseUrl}/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true`;
+      // Try multiple URL formats for better compatibility
+      const urlFormats = [
+        // Format 1: With all parameters
+        `${baseUrl}/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true`,
+        // Format 2: Simplified parameters
+        `${baseUrl}/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}`,
+        // Format 3: Basic format with just dimensions
+        `${baseUrl}/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}`,
+        // Format 4: Minimal format with complex prompt
+        `${baseUrl}/${encodedPrompt}`,
+        // Format 5: Simplified prompt with dimensions
+        `${baseUrl}/${encodeURIComponent(request.prompt)}?width=${dimensions.width}&height=${dimensions.height}`,
+        // Format 6: Simplified prompt only
+        `${baseUrl}/${encodeURIComponent(request.prompt)}`,
+      ];
       
-      // For Pollinations AI, we'll skip validation and trust the service
-      // since it's reliable and validation timeouts are causing issues
+      let workingUrl = '';
+      let lastError: Error | null = null;
+      
+      // Try each URL format until one works
+      for (const imageUrl of urlFormats) {
+        try {
+          // Add timeout to prevent hanging requests
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
+          const testResponse = await fetch(imageUrl, {
+            signal: controller.signal,
+            method: 'GET'
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!testResponse.ok) {
+            throw new Error(`Pollinations service returned ${testResponse.status}`);
+          }
+          
+          // Check if we actually got image content
+          const contentType = testResponse.headers.get('content-type');
+          if (!contentType || !contentType.startsWith('image/')) {
+            throw new Error(`Pollinations service returned non-image content: ${contentType}`);
+          }
+          
+          // Check content length
+          const contentLength = testResponse.headers.get('content-length');
+          if (contentLength && parseInt(contentLength) === 0) {
+            throw new Error('Pollinations service returned empty image');
+          }
+          
+          // If we get here, this URL works
+          workingUrl = imageUrl;
+          break;
+          
+        } catch (error) {
+          lastError = error as Error;
+          console.warn(`URL format failed: ${imageUrl}`, error);
+          continue;
+        }
+      }
+      
+      if (!workingUrl) {
+        throw lastError || new Error('All Pollinations URL formats failed');
+      }
+
       const generatedImage: GeneratedImage = {
         id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        url: imageUrl,
+        url: workingUrl,
         prompt: request.prompt,
         timestamp: new Date(),
         aspectRatio,
       };
 
-      // Optionally validate in background (non-blocking) with retry logic
-      this.validateImageUrlWithRetry(imageUrl, 2).catch(() => {
-        // If validation fails, we don't need to do anything
-        // The image will still be shown to the user
-        // Silent failure - non-critical background validation
-      });
-
       return generatedImage;
     } catch (error) {
-      // Silent failure, will try alternative service
+      console.warn('Pollinations AI failed, trying alternative service:', error);
       
       // Try alternative free service
       try {
         return await this.generateWithAlternativeService(request);
       } catch (alternativeError) {
-        // Silent failure, will use demo images as final fallback
+        console.warn('Alternative service failed, using demo images:', alternativeError);
         
         // Final fallback to demo images
         return this.generateDemoImage(request);
@@ -97,12 +149,18 @@ export class ImageGenerationService {
   }
 
   private static async generateWithAlternativeService(request: ImageGenerationRequest): Promise<GeneratedImage> {
-    // Use a different free service - Hugging Face's free inference API
+    // Use a different free service - Picsum Photos (reliable placeholder service)
     try {
       const dimensions = this.getImageDimensions(request.aspectRatio);
       
       // Use a simple image service that works reliably
       const imageUrl = `https://picsum.photos/${dimensions.width}/${dimensions.height}?random=${Math.floor(Math.random() * 1000)}`;
+      
+      // Verify the alternative service works
+      const testResponse = await fetch(imageUrl, { method: 'HEAD' });
+      if (!testResponse.ok) {
+        throw new Error(`Alternative service returned ${testResponse.status}`);
+      }
       
       return {
         id: `alternative_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -111,66 +169,13 @@ export class ImageGenerationService {
         timestamp: new Date(),
         aspectRatio: request.aspectRatio || '1:1',
       };
-    } catch {
+    } catch (error) {
+      console.warn('Alternative service failed:', error);
       throw new Error('Alternative service failed');
     }
   }
 
-  private static async validateImageUrlInBackground(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      img.onload = () => {
-        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          resolve();
-        } else {
-          reject(new Error('Invalid image dimensions'));
-        }
-      };
-      
-      img.onerror = () => {
-        reject(new Error('Failed to load image'));
-      };
-      
-      // Increased timeout to 30 seconds for slower connections
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Image validation timeout'));
-      }, 30000);
-      
-      img.onload = () => {
-        clearTimeout(timeoutId);
-        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          resolve();
-        } else {
-          reject(new Error('Invalid image dimensions'));
-        }
-      };
-      
-      img.onerror = () => {
-        clearTimeout(timeoutId);
-        reject(new Error('Failed to load image'));
-      };
-      
-      img.src = url;
-    });
-  }
 
-  private static async validateImageUrlWithRetry(url: string, retries: number = 2): Promise<void> {
-    for (let i = 0; i <= retries; i++) {
-      try {
-        await this.validateImageUrlInBackground(url);
-        return; // Success, exit the loop
-      } catch (error) {
-        if (i === retries) {
-          // Last retry failed, throw the error
-          throw error;
-        }
-        // Wait before retry (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
-      }
-    }
-  }
 
   private static async generateDemoImage(request: ImageGenerationRequest): Promise<GeneratedImage> {
     // Simulate API delay
@@ -180,6 +185,27 @@ export class ImageGenerationService {
     const imagesForRatio = this.BACKUP_IMAGES[aspectRatio];
     const randomIndex = Math.floor(Math.random() * imagesForRatio.length);
     const imageUrl = imagesForRatio[randomIndex];
+    
+    // Verify demo image works
+    try {
+      const testResponse = await fetch(imageUrl, { method: 'HEAD' });
+      if (!testResponse.ok) {
+        throw new Error(`Demo image service returned ${testResponse.status}`);
+      }
+    } catch (error) {
+      console.warn('Demo image failed, using fallback URL:', error);
+      // Use a guaranteed working fallback
+      const dimensions = this.getImageDimensions(aspectRatio);
+      const fallbackUrl = `https://picsum.photos/${dimensions.width}/${dimensions.height}?random=${Math.floor(Math.random() * 1000)}`;
+      
+      return {
+        id: `demo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        url: fallbackUrl,
+        prompt: request.prompt,
+        timestamp: new Date(),
+        aspectRatio,
+      };
+    }
     
     return {
       id: `demo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

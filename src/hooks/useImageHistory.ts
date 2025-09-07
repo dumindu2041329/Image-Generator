@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, SavedImage, getUserId } from '../lib/supabase';
+import { supabase, getAuthenticatedStorageClient, SavedImage, getUserId } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
 export const useImageHistory = () => {
@@ -20,10 +20,14 @@ export const useImageHistory = () => {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch saved images error:', error);
+        throw error;
+      }
       setSavedImages(data || []);
     } catch (error) {
-      // Silent failure - loading state will be set to false
+      // Log the error for debugging
+      console.error('Fetch saved images error:', error);
     } finally {
       setLoading(false);
     }
@@ -52,26 +56,44 @@ export const useImageHistory = () => {
       // 1. Fetch the image from the external URL as a blob
       const response = await fetch(generatedImageUrl);
       if (!response.ok) {
+        console.error(`Failed to fetch generated image for saving. Status: ${response.status}, URL: ${generatedImageUrl}`);
         throw new Error(`Failed to fetch generated image for saving. Status: ${response.status}`);
       }
+      
       const imageBlob = await response.blob();
+      
+      // Check if the blob is actually an image and has content
+      if (!imageBlob.type.startsWith('image/')) {
+        console.error(`Generated image is not a valid image type: ${imageBlob.type}, URL: ${generatedImageUrl}`);
+        throw new Error(`Generated image is not a valid image type: ${imageBlob.type}`);
+      }
+      
+      if (imageBlob.size === 0) {
+        console.error(`Generated image is empty (0 bytes), URL: ${generatedImageUrl}`);
+        throw new Error('Generated image is empty (0 bytes). The image generation service may be experiencing issues. Please try again.');
+      }
       const fileExt = imageBlob.type.split('/')[1] || 'jpg';
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
       // 2. Upload the blob to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const authStorageClient = await getAuthenticatedStorageClient();
+      const { error: uploadError } = await authStorageClient?.storage
         .from('generated_images')
-        .upload(filePath, imageBlob);
+        .upload(filePath, imageBlob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: imageBlob.type || 'image/jpeg',
+        }) || { error: new Error('Storage client not available') };
 
       if (uploadError) {
         throw uploadError;
       }
 
       // 3. Get the public URL of the uploaded image
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = authStorageClient?.storage
         .from('generated_images')
-        .getPublicUrl(filePath);
+        .getPublicUrl(filePath) || { data: { publicUrl: '' } };
 
       if (!publicUrl) {
         throw new Error('Failed to get public URL for the uploaded image.');
@@ -95,13 +117,15 @@ export const useImageHistory = () => {
         .single();
 
       if (insertError) {
+        console.error('Database insert error:', insertError);
         throw insertError;
       }
 
       setSavedImages(prev => [data, ...prev]);
       return data;
     } catch (error) {
-      // Silent failure - return null to indicate failure
+      // Log the error for debugging
+      console.error('Save image error:', error);
       return null;
     }
   };
@@ -126,10 +150,46 @@ export const useImageHistory = () => {
         }
       }
 
+      // Additional validation for file path
+      if (filePathToDelete && filePathToDelete.includes('undefined')) {
+        console.warn('Invalid file path detected, skipping storage deletion:', filePathToDelete);
+        filePathToDelete = null;
+      }
+
+      // Try to delete from storage if we have a valid path
       if (filePathToDelete) {
-        await supabase.storage.from('generated_images').remove([filePathToDelete]);
+        try {
+          // Clean the file path to ensure it's valid
+          const cleanPath = filePathToDelete.startsWith('/') ? filePathToDelete.slice(1) : filePathToDelete;
+          
+          console.log('Attempting to delete file from storage:', cleanPath);
+          console.log('File path details:', {
+            original: filePathToDelete,
+            cleaned: cleanPath,
+            userId: userId
+          });
+          
+          // Try the standard remove method using authenticated storage client
+          const authStorageClient = await getAuthenticatedStorageClient();
+          const { data: removeData, error: storageError } = await authStorageClient?.storage
+            .from('generated_images')
+            .remove([cleanPath]) || { data: null, error: new Error('Storage client not available') };
+          
+          console.log('Storage deletion response:', { removeData, storageError });
+          
+          if (storageError) {
+            console.warn('Storage deletion failed:', storageError);
+            // Don't throw here - continue with database deletion
+            // The file might not exist or there might be permission issues
+          } else {
+            console.log('Successfully deleted file from storage:', cleanPath);
+          }
+        } catch (storageError) {
+          console.warn('Storage deletion error:', storageError);
+          // Don't throw here - continue with database deletion
+        }
       } else {
-        // Skip storage deletion silently if path cannot be determined
+        console.warn('No file path available for storage deletion');
       }
       
       // 2. Delete from database

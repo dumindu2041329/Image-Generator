@@ -78,11 +78,19 @@ const HomePage: React.FC = () => {
             'Your generated image has been saved to your history.'
           );
         } catch (saveError) {
-          // Silent failure with user notification
-          showWarning(
-            'Image Generated but Not Saved',
-            'The image was created successfully but could not be saved to your history.'
-          );
+          // Provide more specific error messages
+          const errorMessage = saveError instanceof Error ? saveError.message : 'Unknown error occurred';
+          if (errorMessage.includes('empty (0 bytes)')) {
+            showWarning(
+              'Image Generation Issue',
+              'The image generation service returned an empty image. This may be a temporary issue. Please try again with a different prompt or try again later.'
+            );
+          } else {
+            showWarning(
+              'Image Generated but Not Saved',
+              `The image was created successfully but could not be saved to your history. ${errorMessage}`
+            );
+          }
         }
       }
     } catch (error) {

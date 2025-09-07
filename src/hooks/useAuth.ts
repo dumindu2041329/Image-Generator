@@ -80,6 +80,10 @@ export const useAuth = () => {
     
     try {
       await clerk.signOut();
+      // Clean up any auth-related paths left in the URL
+      if (window.location.pathname.startsWith('/sign-') || window.location.pathname.startsWith('/factor')) {
+        window.history.replaceState(null, '', '/');
+      }
     } catch (error: any) {
       throw new Error(error.message || 'Sign out failed');
     }
@@ -125,7 +129,24 @@ export const useAuth = () => {
     }
   };
 
-  const updateEmail = async (newEmail: string) => {
+  const updateProfileImage = async (file: File) => {
+    if (!isConfigured) {
+      throw new Error('Authentication not configured');
+    }
+
+    if (!clerk.user) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      await clerk.user.setProfileImage({ file });
+      return { user: clerk.user };
+    } catch (error: any) {
+      throw new Error(error.message || 'Profile image update failed');
+    }
+  };
+
+  const updateEmail = async (newEmail: string, currentPassword?: string) => {
     if (!isConfigured) {
       throw new Error('Authentication not configured');
     }
@@ -135,10 +156,52 @@ export const useAuth = () => {
     }
 
     try {
-      await clerkUser?.createEmailAddress({ email: newEmail });
+      // If additional verification is required by your Clerk instance, re-authenticate with password
+      if (currentPassword) {
+        const currentEmail = clerkUser?.emailAddresses?.[0]?.emailAddress;
+        if (!currentEmail) throw new Error('Current email not found');
+        const signInAttempt = await clerk.client.signIn.create({
+          identifier: currentEmail,
+          password: currentPassword,
+        });
+        if (signInAttempt.status === 'complete') {
+          await clerk.setActive({ session: signInAttempt.createdSessionId });
+        } else {
+          throw new Error('Re-authentication failed');
+        }
+      }
+
+      const created = await clerkUser?.createEmailAddress({ email: newEmail });
+      if (!created) throw new Error('Failed to create new email address');
+      await created.prepareVerification({ strategy: 'email_code' });
+      // Do not sign out immediately; allow user to verify the code first
       return { user: clerkUser };
     } catch (error: any) {
       throw new Error(error.message || 'Email update failed');
+    }
+  };
+
+  const verifyEmailUpdate = async (newEmail: string, code: string) => {
+    if (!isConfigured) {
+      throw new Error('Authentication not configured');
+    }
+
+    if (!clerkUser) {
+      throw new Error('No user logged in');
+    }
+
+    try {
+      const emailObj = clerkUser.emailAddresses.find((e: any) => e.emailAddress === newEmail);
+      if (!emailObj) {
+        throw new Error('New email not found on account');
+      }
+
+      await emailObj.attemptVerification({ code });
+      // Make the new address primary
+      await clerkUser.update({ primaryEmailAddressId: emailObj.id });
+      return { user: clerkUser };
+    } catch (error: any) {
+      throw new Error(error.message || 'Email verification failed');
     }
   };
 
@@ -169,7 +232,9 @@ export const useAuth = () => {
     signOut,
     resetPassword,
     updateProfile,
+    updateProfileImage,
     updateEmail,
+    verifyEmailUpdate,
     updatePassword,
   };
 };

@@ -59,12 +59,21 @@ const MyImagesPage: React.FC = () => {
         'The image has been permanently removed from your collection.'
       );
     } catch (error) {
-      // Silent failure with user notification
+      // Provide more specific error messages
       setDeleteConfirm({ isOpen: false, imageId: '' });
-      showError(
-        'Delete Failed',
-        'Could not delete the image. Please try again.'
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      if (errorMessage.includes('storage') || errorMessage.includes('400')) {
+        showError(
+          'Delete Failed',
+          'Could not delete the image file from storage, but it has been removed from your collection. This may be due to a temporary storage issue.'
+        );
+      } else {
+        showError(
+          'Delete Failed',
+          `Could not delete the image. ${errorMessage}`
+        );
+      }
     }
   };
 

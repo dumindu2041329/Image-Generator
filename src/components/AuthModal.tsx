@@ -49,6 +49,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
     return () => window.removeEventListener('clerk:navigate', handler as EventListener);
   }, [isOpen]);
 
+  // After successful auth, ensure URL is cleaned up to home path
+  useEffect(() => {
+    if (!isOpen && (window.location.pathname.startsWith('/sign-') || window.location.pathname.startsWith('/factor'))) {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [isOpen]);
+
+  // Keep URL reflecting current auth view while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const desiredPath = mode === 'signup' ? '/sign-up' : '/sign-in';
+    if (window.location.pathname !== desiredPath) {
+      window.history.replaceState(null, '', desiredPath);
+    }
+  }, [isOpen, mode]);
+
   if (!isOpen) return null;
 
   if (!isConfigured) {
@@ -104,17 +120,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
         
         {mode === 'signin' ? (
           <SignIn 
+            path="/sign-in"
             signUpUrl="/sign-up"
             afterSignInUrl="/"
             redirectUrl="/"
-            routing="virtual"
+            routing="path"
           />
         ) : (
           <SignUp 
+            path="/sign-up"
             signInUrl="/sign-in"
             afterSignUpUrl="/"
             redirectUrl="/"
-            routing="virtual"
+            routing="path"
           />
         )}
       </div>

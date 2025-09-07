@@ -32,20 +32,23 @@ function App() {
     <ClerkProvider 
       publishableKey={clerkPubKey}
       routerPush={(to) => {
-        // Notify auth modal to switch views without changing the URL
+        // Update the URL and notify modal to switch views
+        window.history.pushState(null, '', to);
         window.dispatchEvent(new CustomEvent('clerk:navigate', { detail: to }));
       }}
       routerReplace={(to) => {
+        window.history.replaceState(null, '', to);
         window.dispatchEvent(new CustomEvent('clerk:navigate', { detail: to }));
-      }}
-      routerState={(state) => {
-        // No-op for state in virtual routing scenario
       }}
     >
       <ToastProvider>
         <Router>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            {/* Ensure auth paths render app content behind the modal */}
+            <Route path="/sign-in" element={<HomePage />} />
+            <Route path="/sign-up" element={<HomePage />} />
+            <Route path="/factor-one" element={<HomePage />} />
             <Route path="/my-images" element={<MyImagesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/auth/confirm" element={<AuthConfirmPage />} />
