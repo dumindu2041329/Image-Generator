@@ -5,14 +5,16 @@ import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/ToastContainer';
 import { clerkPubKey } from './lib/clerk';
 
-// Lazy load page components for better code splitting
-const HomePage = lazy(() => import('./pages/HomePage'));
+// Import HomePage directly for immediate loading
+import HomePage from './pages/HomePage';
+
+// Lazy load other page components for better code splitting
 const MyImagesPage = lazy(() => import('./pages/MyImagesPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AuthConfirmPage = lazy(() => import('./pages/AuthConfirmPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
-// Loading component for Suspense fallback
+// Minimal loading component for Suspense fallback (only for non-home pages)
 const PageLoader = () => (
   <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
     <div className="text-white text-lg">Loading...</div>
@@ -53,19 +55,33 @@ function App() {
     >
       <ToastProvider>
         <Router>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              {/* Ensure auth paths render app content behind the modal */}
-              <Route path="/sign-in" element={<HomePage />} />
-              <Route path="/sign-up" element={<HomePage />} />
-              <Route path="/factor-one" element={<HomePage />} />
-              <Route path="/my-images" element={<MyImagesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/auth/confirm" element={<AuthConfirmPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-            </Routes>
-          </Suspense>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            {/* Ensure auth paths render app content behind the modal */}
+            <Route path="/sign-in" element={<HomePage />} />
+            <Route path="/sign-up" element={<HomePage />} />
+            <Route path="/factor-one" element={<HomePage />} />
+            <Route path="/my-images" element={
+              <Suspense fallback={<PageLoader />}>
+                <MyImagesPage />
+              </Suspense>
+            } />
+            <Route path="/profile" element={
+              <Suspense fallback={<PageLoader />}>
+                <ProfilePage />
+              </Suspense>
+            } />
+            <Route path="/auth/confirm" element={
+              <Suspense fallback={<PageLoader />}>
+                <AuthConfirmPage />
+              </Suspense>
+            } />
+            <Route path="/reset-password" element={
+              <Suspense fallback={<PageLoader />}>
+                <ResetPasswordPage />
+              </Suspense>
+            } />
+          </Routes>
           <ToastContainer />
         </Router>
       </ToastProvider>
