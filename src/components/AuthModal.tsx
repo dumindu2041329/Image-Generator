@@ -61,8 +61,6 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'signin' }) => {
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>(initialMode);
-  // Prevent close button from flashing in center before Clerk form mounts
-  const [showCloseButton, setShowCloseButton] = useState(false);
   const { user: clerkUser } = useUser();
   const { isConfigured } = useAuth();
   const { showSuccess } = useToast();
@@ -82,12 +80,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
-      // Slight delay so the auth form mounts before showing the close button
-      const timer = window.setTimeout(() => setShowCloseButton(true), 150);
-      return () => {
-        window.clearTimeout(timer);
-        setShowCloseButton(false);
-      };
     }
   }, [isOpen, initialMode]);
 
@@ -168,15 +160,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="relative">
-        {showCloseButton && (
-          <button
-            onClick={onClose}
-            aria-label="Close authentication"
-            className="absolute top-4 right-4 z-10 text-gray-400 hover:text-white transition-colors bg-black/20 rounded-full p-2"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
         
         {mode === 'signin' ? (
           <SignIn 
