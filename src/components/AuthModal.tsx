@@ -92,7 +92,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
     } else {
       setShowCloseButton(false);
     }
-  }, [isOpen, initialMode]);
+  }, [isOpen]); // Removed initialMode dependency to prevent retriggering on mode changes
 
   // Listen for Clerk virtual navigation events from Provider router hooks
   useEffect(() => {
@@ -103,6 +103,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
       const to = custom.detail || '';
       if (to.includes('sign-up')) setMode('signup');
       if (to.includes('sign-in')) setMode('signin');
+      // Keep close button visible during mode transitions - don't hide it
     };
 
     window.addEventListener('clerk:navigate', handler as EventListener);
@@ -124,6 +125,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
       window.history.replaceState(null, '', desiredPath);
     }
   }, [isOpen, mode]);
+
+  // Handle initial mode setting separately to avoid affecting close button timing
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+    }
+  }, [isOpen, initialMode]);
 
   if (!isOpen) return null;
 
