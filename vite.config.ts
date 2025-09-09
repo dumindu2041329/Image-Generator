@@ -9,66 +9,32 @@ export default defineConfig({
     include: ['react', 'react-dom', 'react-router-dom'],
   },
   
+  define: {
+    global: 'globalThis',
+  },
+  
   build: {
     commonjsOptions: {
       include: [/node_modules/],
     },
     rollupOptions: {
-      external: (id) => {
-        // Don't externalize React modules
-        return false;
-      },
       output: {
-        manualChunks: (id) => {
-          // Vendor chunks
-          if (id.includes('node_modules')) {
-            // Keep React and React-DOM together to avoid compatibility issues
-            if (id.includes('react/') || id.includes('react-dom/') || 
-                id.includes('react/index') || id.includes('react-dom/index')) {
-              return 'vendor-react';
-            }
-            if (id.includes('react-router')) {
-              return 'vendor-router';
-            }
-            if (id.includes('@clerk')) {
-              return 'vendor-clerk';
-            }
-            if (id.includes('@supabase')) {
-              return 'vendor-supabase';
-            }
-            if (id.includes('axios') || id.includes('lucide-react')) {
-              return 'vendor-utils';
-            }
-            // Group other node_modules into a general vendor chunk
-            return 'vendor-misc';
-          }
-          
-          // Page chunks for better code splitting
-          if (id.includes('/pages/')) {
-            const pageName = id.split('/pages/')[1].split('.')[0];
-            return `page-${pageName.toLowerCase()}`;
-          }
-          
-          // Component chunks
-          if (id.includes('/components/')) {
-            return 'components';
-          }
-          
-          // Service chunks
-          if (id.includes('/services/')) {
-            return 'services';
-          }
+        manualChunks: {
+          // Keep React and React-DOM in the same chunk to avoid timing issues
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-router': ['react-router-dom'],
+          'vendor-clerk': ['@clerk/clerk-react', '@clerk/clerk-js', '@clerk/themes'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-utils': ['axios', 'lucide-react'],
         },
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
-          return `assets/[name]-[hash].js`;
-        },
+        chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
-    chunkSizeWarningLimit: 3000, // Increase limit to 3MB for Clerk library
+    chunkSizeWarningLimit: 3000,
     target: 'esnext',
     minify: 'esbuild',
+    sourcemap: false, // Disable sourcemaps to avoid potential issues
   },
 });
