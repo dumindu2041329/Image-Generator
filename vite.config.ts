@@ -6,15 +6,25 @@ export default defineConfig({
   
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['react', 'react-dom', 'react-router-dom'],
   },
   
   build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
     rollupOptions: {
+      external: (id) => {
+        // Don't externalize React modules
+        return false;
+      },
       output: {
         manualChunks: (id) => {
           // Vendor chunks
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
+            // Keep React and React-DOM together to avoid compatibility issues
+            if (id.includes('react/') || id.includes('react-dom/') || 
+                id.includes('react/index') || id.includes('react-dom/index')) {
               return 'vendor-react';
             }
             if (id.includes('react-router')) {
