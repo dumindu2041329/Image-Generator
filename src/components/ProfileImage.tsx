@@ -78,7 +78,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
     if (loading) {
       return (
         <div className="flex items-center justify-center w-full h-full">
-          <div className="animate-spin rounded-full border-2 border-white/30 border-t-white w-1/2 h-1/2"></div>
+          <div className="w-1/2 h-1/2 rounded-full bg-white/20" />
         </div>
       );
     }

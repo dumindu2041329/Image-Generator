@@ -133,13 +133,9 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
             >
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative flex items-center gap-2">
-                {isGenerating ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
+                <Send className="w-5 h-5" />
                 <span className="hidden sm:inline">
-                  {isGenerating ? 'Generating...' : 'Generate'}
+                  {isGenerating ? 'Generate' : 'Generate'}
                 </span>
               </div>
             </button>

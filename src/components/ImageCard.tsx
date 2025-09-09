@@ -97,20 +97,13 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
 
   if (image.isLoading) {
     return (
-      <div className="glass rounded-2xl overflow-hidden floating-animation">
+      <div className="glass rounded-2xl overflow-hidden">
         <div className={`bg-gray-800 relative overflow-hidden ${getAspectRatioClass(image.aspectRatio)}`}>
-          <div className="absolute inset-0 shimmer"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-300">Creating your image...</p>
-              <p className="text-gray-500 text-sm mt-1">{getAspectRatioLabel(image.aspectRatio)} format</p>
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-gray-700/40"></div>
         </div>
         <div className="p-4">
-          <div className="h-4 bg-gray-700 rounded animate-pulse mb-2"></div>
-          <div className="h-3 bg-gray-700 rounded animate-pulse w-2/3"></div>
+          <div className="h-4 bg-gray-700 rounded mb-2"></div>
+          <div className="h-3 bg-gray-700 rounded w-2/3"></div>
         </div>
       </div>
     );

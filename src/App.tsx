@@ -62,22 +62,22 @@ function App() {
             <Route path="/sign-up" element={<HomePage />} />
             <Route path="/factor-one" element={<HomePage />} />
             <Route path="/my-images" element={
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={null}>
                 <MyImagesPage />
               </Suspense>
             } />
             <Route path="/profile" element={
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={null}>
                 <ProfilePage />
               </Suspense>
             } />
             <Route path="/auth/confirm" element={
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={null}>
                 <AuthConfirmPage />
               </Suspense>
             } />
             <Route path="/reset-password" element={
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={null}>
                 <ResetPasswordPage />
               </Suspense>
             } />
