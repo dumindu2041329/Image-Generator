@@ -1,8 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { X, User } from 'lucide-react';
 import { SignIn, SignUp, useUser } from '@clerk/clerk-react';
+import { dark } from '@clerk/themes';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
+
+// Dark theme configuration for Clerk components
+const darkThemeConfig = {
+  baseTheme: dark,
+  elements: {
+    formButtonPrimary: "bg-blue-600 hover:bg-blue-700 text-white transition-colors",
+    card: "bg-gray-900 border-gray-700 shadow-2xl",
+    headerTitle: "text-white font-bold",
+    headerSubtitle: "text-gray-300",
+    socialButtonsBlockButton: "bg-gray-800 border-gray-600 text-white hover:bg-gray-700 transition-colors",
+    socialButtonsBlockButtonText: "text-white",
+    formFieldInput: "bg-gray-800 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors",
+    formFieldLabel: "text-gray-300 font-medium",
+    identityPreviewText: "text-gray-300",
+    formFieldHintText: "text-gray-400 text-sm",
+    formFieldErrorText: "text-red-400 text-sm",
+    footerActionText: "text-gray-300",
+    footerActionLink: "text-blue-400 hover:text-blue-300 transition-colors",
+    dividerLine: "bg-gray-600",
+    dividerText: "text-gray-400",
+    formResendCodeLink: "text-blue-400 hover:text-blue-300 transition-colors",
+    otpCodeFieldInput: "bg-gray-800 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors",
+    formHeaderTitle: "text-white font-bold",
+    formHeaderSubtitle: "text-gray-300",
+    alertText: "text-gray-300",
+    formFieldSuccessText: "text-green-400 text-sm",
+    formFieldWarningText: "text-yellow-400 text-sm",
+    formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-300 transition-colors",
+    formFieldInputShowPasswordIcon: "text-gray-400",
+    formFieldInputHidePasswordIcon: "text-gray-400",
+    // Additional styling for better UX
+    formFieldInputShowPasswordButtonHover: "text-gray-300",
+    formFieldInputShowPasswordButtonActive: "text-gray-200",
+    formFieldInputShowPasswordButtonFocus: "text-gray-200",
+    formFieldInputShowPasswordButtonDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonHoverDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonActiveDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonFocusDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonHoverActive: "text-gray-200",
+    formFieldInputShowPasswordButtonHoverFocus: "text-gray-200",
+    formFieldInputShowPasswordButtonActiveFocus: "text-gray-200",
+    formFieldInputShowPasswordButtonHoverActiveFocus: "text-gray-200",
+    formFieldInputShowPasswordButtonHoverActiveDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonHoverFocusDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonActiveFocusDisabled: "text-gray-500",
+    formFieldInputShowPasswordButtonHoverActiveFocusDisabled: "text-gray-500"
+  }
+};
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -125,6 +174,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
             afterSignInUrl="/"
             redirectUrl="/"
             routing="path"
+            appearance={darkThemeConfig}
           />
         ) : (
           <SignUp 
@@ -133,6 +183,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
             afterSignUpUrl="/"
             redirectUrl="/"
             routing="path"
+            appearance={darkThemeConfig}
           />
         )}
       </div>

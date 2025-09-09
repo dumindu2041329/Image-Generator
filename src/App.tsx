@@ -1,13 +1,23 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
-import HomePage from './pages/HomePage';
-import MyImagesPage from './pages/MyImagesPage';
-import ProfilePage from './pages/ProfilePage';
-import AuthConfirmPage from './pages/AuthConfirmPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
+import { lazy, Suspense } from 'react';
 import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/ToastContainer';
 import { clerkPubKey } from './lib/clerk';
+
+// Lazy load page components for better code splitting
+const HomePage = lazy(() => import('./pages/HomePage'));
+const MyImagesPage = lazy(() => import('./pages/MyImagesPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AuthConfirmPage = lazy(() => import('./pages/AuthConfirmPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+
+// Loading component for Suspense fallback
+const PageLoader = () => (
+  <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+    <div className="text-white text-lg">Loading...</div>
+  </div>
+);
 
 function App() {
   if (!clerkPubKey || clerkPubKey.includes('YOUR_CLERK_PUBLISHABLE_KEY')) {
@@ -43,17 +53,19 @@ function App() {
     >
       <ToastProvider>
         <Router>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            {/* Ensure auth paths render app content behind the modal */}
-            <Route path="/sign-in" element={<HomePage />} />
-            <Route path="/sign-up" element={<HomePage />} />
-            <Route path="/factor-one" element={<HomePage />} />
-            <Route path="/my-images" element={<MyImagesPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/auth/confirm" element={<AuthConfirmPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              {/* Ensure auth paths render app content behind the modal */}
+              <Route path="/sign-in" element={<HomePage />} />
+              <Route path="/sign-up" element={<HomePage />} />
+              <Route path="/factor-one" element={<HomePage />} />
+              <Route path="/my-images" element={<MyImagesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/auth/confirm" element={<AuthConfirmPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+            </Routes>
+          </Suspense>
           <ToastContainer />
         </Router>
       </ToastProvider>
