@@ -10,7 +10,7 @@ const darkThemeConfig = {
   baseTheme: dark,
   elements: {
     formButtonPrimary: "bg-blue-600 hover:bg-blue-700 text-white transition-colors",
-    card: "bg-gray-900 border-gray-700 shadow-2xl",
+    card: "bg-gray-900 border-gray-700 shadow-2xl relative", // Added relative for positioning close button
     headerTitle: "text-white font-bold",
     headerSubtitle: "text-gray-300",
     socialButtonsBlockButton: "bg-gray-800 border-gray-600 text-white hover:bg-gray-700 transition-colors",
@@ -81,11 +81,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   useEffect(() => {
     if (isOpen) {
       setMode(initialMode);
-      // Show close button after form has rendered
-      const timer = setTimeout(() => setShowCloseButton(true), 300);
+      setShowCloseButton(false);
+      // Show close button after Clerk form loads (delay to ensure form is rendered)
+      const timer = setTimeout(() => {
+        setShowCloseButton(true);
+      }, 500); // 500ms delay to ensure Clerk form is fully loaded
       return () => {
         clearTimeout(timer);
-        setShowCloseButton(false);
       };
     } else {
       setShowCloseButton(false);
@@ -169,11 +171,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 's
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="relative">
+        {/* Close button positioned over the Clerk form - only show after form loads */}
         {showCloseButton && (
           <button
             onClick={onClose}
             aria-label="Close authentication"
-            className="absolute top-4 right-4 z-10 text-gray-400 hover:text-white transition-colors bg-black/20 rounded-full p-2"
+            className="absolute top-4 right-4 z-50 text-gray-400 hover:text-white transition-all duration-300 bg-black/20 hover:bg-black/40 rounded-full p-2 animate-fade-in"
           >
             <X className="w-5 h-5" />
           </button>
