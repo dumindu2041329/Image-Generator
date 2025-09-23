@@ -5,12 +5,6 @@ const Footer: React.FC = () => {
   return (
     <footer className="mt-20 py-8 px-4 border-t border-white/10">
       <div className="max-w-4xl mx-auto text-center">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <span className="text-gray-400">Made with</span>
-          <Heart className="w-4 h-4 text-red-500" />
-          <span className="text-gray-400">by Dualite Alpha</span>
-        </div>
-        
         <div className="flex items-center justify-center gap-6 mb-4">
           <a
             href="https://github.com/dumindu2041329"

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { History, Heart, Trash2, Download, Filter, Search, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { History, Heart, Trash2, Download, Filter, Search, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useImageHistory } from '../hooks/useImageHistory';
 import { useAuth } from '../hooks/useAuth';
@@ -14,6 +14,10 @@ const MyImagesPage: React.FC = () => {
     isOpen: false, 
     imageId: ''
   });
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [imagesPerPage] = useState(12);
+  
   const { savedImages, loading, deleteImage, toggleFavorite } = useImageHistory();
   const { user, isConfigured } = useAuth();
   const { showSuccess, showError } = useToast();
@@ -35,6 +39,22 @@ const MyImagesPage: React.FC = () => {
     const matchesSearch = image.prompt?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false;
     return matchesFilter && matchesSearch;
   });
+  
+  // Calculate pagination values
+  const totalPages = Math.ceil(filteredImages.length / imagesPerPage);
+  const indexOfLastImage = currentPage * imagesPerPage;
+  const indexOfFirstImage = indexOfLastImage - imagesPerPage;
+  const currentImages = filteredImages.slice(indexOfFirstImage, indexOfLastImage);
+  
+  // Reset to first page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchQuery]);
+  
+  // Pagination controls
+  const goToPage = (pageNumber: number) => {
+    setCurrentPage(Math.max(1, Math.min(pageNumber, totalPages)));
+  };
 
   const handleDownload = async (imageUrl: string, id: string) => {
     if (downloadingIds.has(id)) return;
@@ -274,74 +294,141 @@ const MyImagesPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredImages.filter(image => image).map((image) => (
-                  <div key={image.id} className="glass rounded-2xl overflow-hidden group">
-                    <div className="relative aspect-square">
-                      <img
-                        src={image.image_url || ''}
-                        alt={image.prompt || 'Generated image'}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      
-                      {/* Action buttons */}
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <button
-                          onClick={() => handleToggleFavorite(image.id, image.is_favorite || false)}
-                          className={`glass rounded-full p-2 transition-colors duration-300 ${
-                            image.is_favorite 
-                              ? 'text-pink-400 bg-pink-500/20' 
-                              : 'text-gray-400 hover:text-pink-400'
-                          }`}
-                          title={image.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-                        >
-                          <Heart className={`w-4 h-4 ${image.is_favorite ? 'fill-current' : ''}`} />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(image.image_url || '', image.id)}
-                          disabled={downloadingIds.has(image.id)}
-                          className={`glass rounded-full p-2 transition-colors duration-300 ${
-                            downloadingIds.has(image.id)
-                              ? 'opacity-50 cursor-not-allowed text-gray-500'
-                              : 'text-gray-400 hover:text-blue-400'
-                          }`}
-                          title={downloadingIds.has(image.id) ? 'Downloading...' : 'Download image'}
-                        >
-                          {downloadingIds.has(image.id) ? (
-                            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Download className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(image.id)}
-                          className="glass rounded-full p-2 text-gray-400 hover:text-red-400 transition-colors duration-300"
-                          title="Delete image"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Favorite indicator */}
-                      {image.is_favorite && (
-                        <div className="absolute top-2 left-2">
-                          <Heart className="w-5 h-5 text-pink-400 fill-current" />
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {currentImages.filter(image => image).map((image) => (
+                    <div key={image.id} className="glass rounded-2xl overflow-hidden group">
+                      <div className="relative aspect-square">
+                        <img
+                          src={image.image_url || ''}
+                          alt={image.prompt || 'Generated image'}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        {/* Action buttons */}
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <button
+                            onClick={() => handleToggleFavorite(image.id, image.is_favorite || false)}
+                            className={`glass rounded-full p-2 transition-colors duration-300 ${
+                              image.is_favorite 
+                                ? 'text-pink-400 bg-pink-500/20' 
+                                : 'text-gray-400 hover:text-pink-400'
+                            }`}
+                            title={image.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                          >
+                            <Heart className={`w-4 h-4 ${image.is_favorite ? 'fill-current' : ''}`} />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(image.image_url || '', image.id)}
+                            disabled={downloadingIds.has(image.id)}
+                            className={`glass rounded-full p-2 transition-colors duration-300 ${
+                              downloadingIds.has(image.id)
+                                ? 'opacity-50 cursor-not-allowed text-gray-500'
+                                : 'text-gray-400 hover:text-blue-400'
+                            }`}
+                            title={downloadingIds.has(image.id) ? 'Downloading...' : 'Download image'}
+                          >
+                            {downloadingIds.has(image.id) ? (
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(image.id)}
+                            className="glass rounded-full p-2 text-gray-400 hover:text-red-400 transition-colors duration-300"
+                            title="Delete image"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                      )}
+
+                        {/* Favorite indicator */}
+                        {image.is_favorite && (
+                          <div className="absolute top-2 left-2">
+                            <Heart className="w-5 h-5 text-pink-400 fill-current" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-4">
+                        <p className="text-gray-300 text-sm line-clamp-2 mb-2">{image.prompt || 'No prompt available'}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{image.aspect_ratio || 'Unknown'}</span>
+                          <span>{image.style || 'Unknown'}</span>
+                          <span>{image.created_at ? new Date(image.created_at).toLocaleDateString() : 'Unknown date'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center mt-8 gap-2">
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`glass rounded-xl p-2 ${
+                        currentPage === 1 
+                          ? 'opacity-50 cursor-not-allowed text-gray-500' 
+                          : 'glass-hover text-gray-300 hover:text-white'
+                      }`}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        // Show pages around current page
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          // If 5 or fewer pages, show all
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          // If near start, show first 5 pages
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          // If near end, show last 5 pages
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          // Otherwise show 2 before and 2 after current page
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => goToPage(pageNum)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-500 text-white'
+                                : 'glass glass-hover text-gray-300'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
                     </div>
                     
-                    <div className="p-4">
-                      <p className="text-gray-300 text-sm line-clamp-2 mb-2">{image.prompt || 'No prompt available'}</p>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{image.aspect_ratio || 'Unknown'}</span>
-                        <span>{image.style || 'Unknown'}</span>
-                        <span>{image.created_at ? new Date(image.created_at).toLocaleDateString() : 'Unknown date'}</span>
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`glass rounded-xl p-2 ${
+                        currentPage === totalPages 
+                          ? 'opacity-50 cursor-not-allowed text-gray-500' 
+                          : 'glass-hover text-gray-300 hover:text-white'
+                      }`}
+                      aria-label="Next page"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </div>
