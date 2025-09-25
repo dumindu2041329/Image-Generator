@@ -10,6 +10,11 @@ A modern, responsive, and completely free AI image generator built with React an
 
 ![AI Image Generator Screenshot](https://i.ibb.co/67X3xfS/Screenshot-2024-05-23-at-12-05-39-PM.png)
 
+## 🔗 Links
+
+-   **Live Demo (Vercel):** https://image-generator-silk-mu.vercel.app/
+-   **GitHub Repository:** https://github.com/dumindu2041329/Image-Generator
+
 ## ✨ Key Features
 
 -   **🚀 100% Free & Unlimited:** Powered by the free [Pollinations AI](https://pollinations.ai/), generate as many images as you want without any cost.
