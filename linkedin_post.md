@@ -35,7 +35,7 @@ Key Features:
 This project strengthened my skills in React, TypeScript, modern web development, authentication systems, database management, and UI/UX design, while also reinforcing the importance of user experience, performance optimization, and accessible technology.
 
 # Links
-🔗 Live Demo (Vercel): https://image-generator-silk-mu.vercel.app/
-📦 GitHub Repo: https://github.com/dumindu2041329/Image-Generator
+🔗 Live Demo (Vercel): [https://image-generator-silk-mu.vercel.app/](https://image-generator-silk-mu.vercel.app/)
+📦 GitHub Repo: [https://github.com/dumindu2041329/Image-Generator](https://github.com/dumindu2041329/Image-Generator)
 
 #React #TypeScript #WebDevelopment #AI #ImageGeneration #Frontend #JavaScript #Supabase #Clerk #TailwindCSS
