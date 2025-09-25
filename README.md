@@ -8,8 +8,6 @@
 
 A modern, responsive, and completely free AI image generator built with React and Vite. Transform your text prompts into stunning visuals with no API keys, no limits, and no costs. Features optional user authentication with Supabase to save and manage your creations.
 
-![AI Image Generator Screenshot](https://i.ibb.co/67X3xfS/Screenshot-2024-05-23-at-12-05-39-PM.png)
-
 ## 🔗 Links
 
 -   **Live Demo (Vercel):** https://image-generator-silk-mu.vercel.app/
