@@ -5,6 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-cyan?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-2-green?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Vercel Speed Insights](https://img.shields.io/badge/Speed%20Insights-View%20Report-0F172A?logo=vercel&logoColor=white&style=for-the-badge)](https://vercel.com/insights?url=image-generator-silk-mu.vercel.app)
 
 A modern, responsive, and completely free AI image generator built with React and Vite. Transform your text prompts into stunning visuals with no API keys, no limits, and no costs. Features optional user authentication with Supabase to save and manage your creations.
 
@@ -12,6 +13,12 @@ A modern, responsive, and completely free AI image generator built with React an
 
 -   **Live Demo (Vercel):** https://image-generator-silk-mu.vercel.app/
 -   **GitHub Repository:** https://github.com/dumindu2041329/Image-Generator
+
+## 📈 Vercel Speed Insights
+
+Analyze real-world performance metrics collected from your production site with Vercel Speed Insights:
+
+-   **Speed Insights Report:** https://vercel.com/insights?url=image-generator-silk-mu.vercel.app
 
 ## ✨ Key Features
 
