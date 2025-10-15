@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Send, Wand2, Loader2, Settings, Zap, RectangleHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PromptInputProps {
@@ -11,6 +11,7 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
   const [style, setStyle] = useState<'vivid' | 'natural'>('vivid');
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '4:3'>('1:1');
   const [showSettings, setShowSettings] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +19,23 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
       onGenerate(prompt.trim(), style, aspectRatio);
     }
   };
+
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
+  };
+
+  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value);
+    adjustTextareaHeight();
+  };
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [prompt]);
 
   const suggestedPrompts = [
     'A serene mountain landscape at sunset',
@@ -91,14 +109,21 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
         <div className="glass rounded-2xl p-1">
           <div className="flex items-center gap-4 p-4">
             <div className="flex-1 relative">
-              <Wand2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
+              <Wand2 className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
+              <textarea
+                ref={textareaRef}
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={handlePromptChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e as any);
+                  }
+                }}
                 placeholder="Describe the image you want to generate..."
-                className="w-full pl-12 pr-4 py-4 bg-transparent text-white placeholder-gray-400 text-lg focus:outline-none"
+                className="w-full pl-12 pr-4 py-4 bg-transparent text-white placeholder-gray-400 text-lg focus:outline-none resize-none overflow-hidden min-h-[56px] max-h-[200px]"
                 disabled={isGenerating}
+                rows={1}
               />
             </div>
             
