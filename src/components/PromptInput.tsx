@@ -25,11 +25,16 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim() && !isGenerating) {
+      // For image-to-image, pass the URL if it's an external image, otherwise the file
+      const sourceImage = uploadedImage ? 
+        (uploadedImage.file.size === 0 ? uploadedImage.url : uploadedImage.file) : 
+        undefined;
+        
       onGenerate(
         prompt.trim(), 
         style, 
         aspectRatio, 
-        uploadedImage?.file, 
+        sourceImage,
         uploadedImage ? strength : undefined
       );
     }
@@ -55,24 +60,33 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     setEditMode: (imageUrl: string, originalPrompt: string) => {
-      // Convert URL to File-like object for editing
-      fetch(imageUrl)
-        .then(response => response.blob())
-        .then(blob => {
-          const file = new File([blob], 'edit-source.jpg', { type: blob.type });
-          const url = URL.createObjectURL(file);
-          
-          setUploadedImage({
-            file,
-            url,
-            name: 'Source image for editing'
-          });
-          
-          setPrompt(`Edit this image: ${originalPrompt}`);
-          setShowImageToImage(true);
-          setStrength(0.5); // Moderate transformation for editing
-        })
-        .catch(console.error);
+      try {
+        // For image-to-image editing, we can use the URL directly
+        // Create a simplified uploaded image object
+        setUploadedImage({
+          file: new File([], 'source-image.jpg', { type: 'image/jpeg' }), // Placeholder file
+          url: imageUrl, // Use original URL for display
+          name: 'Source image for editing'
+        });
+        
+        setPrompt(`Transform this image: ${originalPrompt}`);
+        setShowImageToImage(true);
+        setStrength(0.5); // Moderate transformation for editing
+        
+        // Scroll to the prompt input area
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
+            textareaRef.current.focus();
+          }
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error setting edit mode:', error);
+      }
     }
   }), []);
 
