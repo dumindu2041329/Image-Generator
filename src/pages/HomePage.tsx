@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import PromptInput, { PromptInputRef } from '../components/PromptInput';
 import ImageGrid from '../components/ImageGrid';
 import Footer from '../components/Footer';
+import DebugPanel from '../components/DebugPanel';
 
 const HomePage: React.FC = () => {
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -191,6 +192,7 @@ const HomePage: React.FC = () => {
         <PromptInput ref={promptInputRef} onGenerate={handleGenerate} isGenerating={isGenerating} />
         <ImageGrid ref={imageGridRef} images={images} onEditImage={handleEditImage} />
         <Footer />
+        <DebugPanel />
       </div>
     </div>
   );
