@@ -65,13 +65,27 @@ const HomePage: React.FC = () => {
         `Created a ${aspectRatio || '1:1'} image with ${style || 'vivid'} style.`
       );
 
-      // Scroll to generated images section
+      // Scroll to generated images section with enhanced transition
       setTimeout(() => {
-        imageGridRef.current?.scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }, 500);
+        if (imageGridRef.current) {
+          // Add a subtle fade-in effect to the scroll target
+          imageGridRef.current.style.opacity = '0.7';
+          imageGridRef.current.style.transition = 'opacity 0.3s ease-in-out';
+          
+          imageGridRef.current.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest'
+          });
+          
+          // Restore opacity after scroll
+          setTimeout(() => {
+            if (imageGridRef.current) {
+              imageGridRef.current.style.opacity = '1';
+            }
+          }, 800);
+        }
+      }, 300);
 
       // Save to Supabase if user is authenticated
       if (isConfigured && user) {
