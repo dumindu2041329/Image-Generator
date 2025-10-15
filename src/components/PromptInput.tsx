@@ -4,7 +4,17 @@ import ImageUpload from './ImageUpload';
 import { UploadedImage } from '../types';
 
 interface PromptInputProps {
-  onGenerate: (prompt: string, style?: 'vivid' | 'natural', aspectRatio?: '1:1' | '16:9' | '4:3', sourceImage?: File | string, strength?: number) => void;
+  onGenerate: (request: {
+    prompt: string;
+    negativePrompt?: string;
+    aspectRatio?: '1:1' | '16:9' | '4:3';
+    sourceImage?: File | string;
+    strength?: number;
+    guidanceScale?: number;
+    inferenceSteps?: number;
+    scheduler?: string;
+    seed?: number;
+  }) => void;
   isGenerating: boolean;
 }
 
@@ -14,13 +24,18 @@ export interface PromptInputRef {
 
 const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, isGenerating }, ref) => {
   const [prompt, setPrompt] = useState('');
-  const [style, setStyle] = useState<'vivid' | 'natural'>('vivid');
+  const [negativePrompt, setNegativePrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '4:3'>('1:1');
   const [showSettings, setShowSettings] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
   const [strength, setStrength] = useState(0.7);
+  const [guidanceScale, setGuidanceScale] = useState(7.5);
+  const [inferenceSteps, setInferenceSteps] = useState(50);
+  const [scheduler, setScheduler] = useState('DPMSolverMultistep');
+  const [seed, setSeed] = useState<number | undefined>(undefined);
   const [showImageToImage, setShowImageToImage] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const negativePromptRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,13 +45,17 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
         (uploadedImage.file.size === 0 ? uploadedImage.url : uploadedImage.file) : 
         undefined;
         
-      onGenerate(
-        prompt.trim(), 
-        style, 
-        aspectRatio, 
+      onGenerate({
+        prompt: prompt.trim(),
+        negativePrompt: negativePrompt.trim() || undefined,
+        aspectRatio,
         sourceImage,
-        uploadedImage ? strength : undefined
-      );
+        strength: uploadedImage ? strength : undefined,
+        guidanceScale,
+        inferenceSteps,
+        scheduler,
+        seed
+      });
     }
   };
 
@@ -116,7 +135,7 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
       ratio: '16:9',
       description: 'Great for wallpapers and presentations',
       icon: '🖥️',
-      dimensions: '1024×576'
+      dimensions: '1344×768'
     },
     { 
       value: '4:3', 
@@ -124,36 +143,21 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
       ratio: '4:3',
       description: 'Traditional photo format',
       icon: '📷',
-      dimensions: '1024×768'
+      dimensions: '1152×896'
     },
-  ] as const;
-
-  const styleOptions = [
-    {
-      value: 'vivid',
-      label: 'Vivid',
-      icon: '✨',
-      description: 'Dramatic lighting, vibrant colors, and high detail'
-    },
-    {
-      value: 'natural',
-      label: 'Natural',
-      icon: '🌿',
-      description: 'More natural, realistic images with soft colors'
-    }
   ] as const;
 
   return (
     <div className="max-w-4xl mx-auto px-4 mb-12">
-      {/* Free API Notice */}
-      <div className="glass rounded-2xl p-4 mb-6 border-l-4 border-green-500">
+      {/* SDXL API Notice */}
+      <div className="glass rounded-2xl p-4 mb-6 border-l-4 border-blue-500">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-green-200 font-medium">100% Free AI Generation</p>
-            <p className="text-green-300 text-sm">Powered by Pollinations AI - No API keys required, unlimited usage!</p>
+            <p className="text-blue-200 font-medium">Stable Diffusion XL (SDXL)</p>
+            <p className="text-blue-300 text-sm">High-quality AI image generation • Requires Replicate API key</p>
           </div>
         </div>
       </div>
@@ -283,48 +287,143 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
                   </div>
                 </div>
 
-                {/* Style Selection */}
+                {/* Negative Prompt */}
                 <div>
                   <label className="block text-base text-white mb-4 font-semibold flex items-center gap-2">
-                    <Wand2 className="w-5 h-5 text-purple-400" />
-                    Generation Style
+                    <Wand2 className="w-5 h-5 text-red-400" />
+                    Negative Prompt (Optional)
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {styleOptions.map((option) => (
+                  <textarea
+                    ref={negativePromptRef}
+                    value={negativePrompt}
+                    onChange={(e) => setNegativePrompt(e.target.value)}
+                    placeholder="Things you don't want in the image (e.g., blurry, low quality, distorted)"
+                    className="w-full p-4 bg-gray-800/50 text-white placeholder-gray-500 text-sm focus:outline-none resize-none overflow-y-auto min-h-[80px] max-h-[120px] rounded-xl border border-gray-700 focus:border-red-500"
+                    rows={3}
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Describe what you want to avoid in the generated image
+                  </p>
+                </div>
+
+                {/* SDXL Parameters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Guidance Scale */}
+                  <div>
+                    <label className="block text-sm text-white mb-3 font-medium">
+                      Guidance Scale: {guidanceScale}
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      step="0.5"
+                      value={guidanceScale}
+                      onChange={(e) => setGuidanceScale(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Creative (1)</span>
+                      <span>Balanced (7.5)</span>
+                      <span>Strict (20)</span>
+                    </div>
+                  </div>
+
+                  {/* Inference Steps */}
+                  <div>
+                    <label className="block text-sm text-white mb-3 font-medium">
+                      Inference Steps: {inferenceSteps}
+                    </label>
+                    <input
+                      type="range"
+                      min="20"
+                      max="100"
+                      step="5"
+                      value={inferenceSteps}
+                      onChange={(e) => setInferenceSteps(parseInt(e.target.value))}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>Fast (20)</span>
+                      <span>Quality (50)</span>
+                      <span>Best (100)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scheduler and Seed */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Scheduler */}
+                  <div>
+                    <label className="block text-sm text-white mb-3 font-medium">
+                      Scheduler
+                    </label>
+                    <select
+                      value={scheduler}
+                      onChange={(e) => setScheduler(e.target.value)}
+                      className="w-full p-3 bg-gray-800/50 text-white rounded-xl border border-gray-700 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="DPMSolverMultistep">DPM++ Multistep</option>
+                      <option value="DDIM">DDIM</option>
+                      <option value="K_EULER">Euler</option>
+                      <option value="K_EULER_ANCESTRAL">Euler Ancestral</option>
+                      <option value="PNDM">PNDM</option>
+                      <option value="KLMS">K-LMS</option>
+                    </select>
+                  </div>
+
+                  {/* Seed */}
+                  <div>
+                    <label className="block text-sm text-white mb-3 font-medium">
+                      Seed (Optional)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={seed || ''}
+                        onChange={(e) => setSeed(e.target.value ? parseInt(e.target.value) : undefined)}
+                        placeholder="Random"
+                        className="flex-1 p-3 bg-gray-800/50 text-white rounded-xl border border-gray-700 focus:outline-none focus:border-blue-500"
+                        min="0"
+                        max="999999"
+                      />
                       <button
-                        key={option.value}
                         type="button"
-                        onClick={() => setStyle(option.value as 'vivid' | 'natural')}
-                        className={`p-4 rounded-xl text-left transition-all duration-300 transform hover:scale-105 ${
-                          style === option.value
-                            ? 'bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400'
-                            : 'glass glass-hover text-gray-300 hover:bg-white/15'
-                        }`}
+                        onClick={() => setSeed(Math.floor(Math.random() * 1000000))}
+                        className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors text-sm"
                       >
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-xl">{option.icon}</span>
-                          <div className="font-semibold">{option.label}</div>
-                        </div>
-                        <div className="text-sm opacity-80">{option.description}</div>
+                        Random
                       </button>
-                    ))}
+                    </div>
                   </div>
                 </div>
 
                 {/* Current Settings Summary */}
                 <div className="glass rounded-xl p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30">
-                  <div className="text-sm text-blue-300 mb-2 font-medium">Current Configuration:</div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="text-sm text-blue-300 mb-3 font-medium">SDXL Configuration Summary:</div>
+                  <div className="grid grid-cols-2 gap-4 text-xs">
                     <div className="flex items-center gap-2">
-                      <RectangleHorizontal className="w-4 h-4 text-blue-400" />
+                      <RectangleHorizontal className="w-3 h-3 text-blue-400" />
                       <span className="text-gray-300">
                         {aspectRatioOptions.find(opt => opt.value === aspectRatio)?.label} ({aspectRatio})
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Wand2 className="w-4 h-4 text-purple-400" />
+                      <Wand2 className="w-3 h-3 text-purple-400" />
                       <span className="text-gray-300">
-                        {styleOptions.find(opt => opt.value === style)?.label} Style
+                        Guidance: {guidanceScale}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-3 h-3 text-green-400" />
+                      <span className="text-gray-300">
+                        Steps: {inferenceSteps}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 text-orange-400" />
+                      <span className="text-gray-300">
+                        Scheduler: {scheduler}
                       </span>
                     </div>
                   </div>

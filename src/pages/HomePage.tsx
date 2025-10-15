@@ -30,36 +30,34 @@ const HomePage: React.FC = () => {
     prevUserRef.current = user;
   }, [user]);
 
-  const handleGenerate = async (
-    prompt: string, 
-    style?: 'vivid' | 'natural', 
-    aspectRatio?: '1:1' | '16:9' | '4:3',
-    sourceImage?: File | string,
-    strength?: number
-  ) => {
+  const handleGenerate = async (request: {
+    prompt: string;
+    negativePrompt?: string;
+    aspectRatio?: '1:1' | '16:9' | '4:3';
+    sourceImage?: File | string;
+    strength?: number;
+    guidanceScale?: number;
+    inferenceSteps?: number;
+    scheduler?: string;
+    seed?: number;
+  }) => {
     setIsGenerating(true);
     
     // Create a loading placeholder
     const loadingImage: GeneratedImage = {
       id: `loading_${Date.now()}`,
       url: '',
-      prompt,
+      prompt: request.prompt,
       timestamp: new Date(),
       isLoading: true,
-      aspectRatio: aspectRatio || '1:1',
+      aspectRatio: request.aspectRatio || '1:1',
     };
     
     // Add loading placeholder to the beginning of the array
     setImages(prev => [loadingImage, ...prev]);
     
     try {
-      const generatedImage = await ImageGenerationService.generateImage({ 
-        prompt, 
-        style,
-        aspectRatio,
-        sourceImage,
-        strength
-      });
+      const generatedImage = await ImageGenerationService.generateImage(request);
       
       // Replace loading placeholder with actual image
       setImages(prev => 
@@ -71,7 +69,7 @@ const HomePage: React.FC = () => {
       // Show success notification
       showSuccess(
         'Image Generated Successfully!',
-        `Created a ${aspectRatio || '1:1'} image with ${style || 'vivid'} style.`
+        `Created a ${request.aspectRatio || '1:1'} image using SDXL.`
       );
 
       // Scroll to generated images section with enhanced transition
@@ -100,10 +98,10 @@ const HomePage: React.FC = () => {
       if (isConfigured && user) {
         try {
           await saveImage(
-            prompt,
+            request.prompt,
             generatedImage.url,
-            aspectRatio || '1:1',
-            style || 'vivid'
+            request.aspectRatio || '1:1',
+            'sdxl' // Indicate SDXL was used
           );
           showSuccess(
             'Image Saved!',
