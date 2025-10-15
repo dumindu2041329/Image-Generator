@@ -121,7 +121,7 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
                   }
                 }}
                 placeholder="Describe the image you want to generate..."
-                className="w-full pl-12 pr-4 py-4 bg-transparent text-white placeholder-gray-400 text-lg focus:outline-none resize-none overflow-hidden min-h-[56px] max-h-[200px]"
+                className="w-full pl-12 pr-4 py-4 bg-transparent text-white placeholder-gray-400 text-lg focus:outline-none resize-none overflow-y-auto min-h-[56px] max-h-[200px] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500"
                 disabled={isGenerating}
                 rows={1}
               />
