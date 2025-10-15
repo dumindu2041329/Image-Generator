@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { GeneratedImage } from '../types';
 import ImageCard from './ImageCard';
 import { Image as ImageIcon } from 'lucide-react';
@@ -7,7 +7,7 @@ interface ImageGridProps {
   images: GeneratedImage[];
 }
 
-const ImageGrid: React.FC<ImageGridProps> = ({ images }) => {
+const ImageGrid = forwardRef<HTMLDivElement, ImageGridProps>(({ images }, ref) => {
   if (images.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 text-center py-16">
@@ -21,7 +21,7 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images }) => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
+    <div ref={ref} className="max-w-7xl mx-auto px-4">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">Your Generated Images</h2>
         <p className="text-gray-400">
@@ -36,6 +36,8 @@ const ImageGrid: React.FC<ImageGridProps> = ({ images }) => {
       </div>
     </div>
   );
-};
+});
+
+ImageGrid.displayName = 'ImageGrid';
 
 export default ImageGrid;

@@ -17,6 +17,7 @@ const HomePage: React.FC = () => {
   const { user, isConfigured } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const prevUserRef = useRef(user);
+  const imageGridRef = useRef<HTMLDivElement>(null);
 
   // This effect clears the locally generated images when the user logs out.
   useEffect(() => {
@@ -63,6 +64,14 @@ const HomePage: React.FC = () => {
         'Image Generated Successfully!',
         `Created a ${aspectRatio || '1:1'} image with ${style || 'vivid'} style.`
       );
+
+      // Scroll to generated images section
+      setTimeout(() => {
+        imageGridRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 500);
 
       // Save to Supabase if user is authenticated
       if (isConfigured && user) {
@@ -145,7 +154,7 @@ const HomePage: React.FC = () => {
         )}
         
         <PromptInput onGenerate={handleGenerate} isGenerating={isGenerating} />
-        <ImageGrid images={images} />
+        <ImageGrid ref={imageGridRef} images={images} />
         <Footer />
       </div>
     </div>
