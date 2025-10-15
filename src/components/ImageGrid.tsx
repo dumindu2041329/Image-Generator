@@ -5,9 +5,10 @@ import { Image as ImageIcon } from 'lucide-react';
 
 interface ImageGridProps {
   images: GeneratedImage[];
+  onEditImage?: (imageUrl: string, prompt: string) => void;
 }
 
-const ImageGrid = forwardRef<HTMLDivElement, ImageGridProps>(({ images }, ref) => {
+const ImageGrid = forwardRef<HTMLDivElement, ImageGridProps>(({ images, onEditImage }, ref) => {
   if (images.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 text-center py-16">
@@ -31,7 +32,7 @@ const ImageGrid = forwardRef<HTMLDivElement, ImageGridProps>(({ images }, ref) =
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {images.map((image) => (
-          <ImageCard key={image.id} image={image} />
+          <ImageCard key={image.id} image={image} onEdit={onEditImage} />
         ))}
       </div>
     </div>

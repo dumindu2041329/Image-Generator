@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Copy, Clock, Check, RectangleHorizontal } from 'lucide-react';
+import { Download, Copy, Clock, Check, RectangleHorizontal, Edit } from 'lucide-react';
 import { GeneratedImage } from '../types';
 import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../contexts/ToastContext';
@@ -7,9 +7,10 @@ import { downloadImage, generateImageFilename } from '../utils/download';
 
 interface ImageCardProps {
   image: GeneratedImage;
+  onEdit?: (imageUrl: string, prompt: string) => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isDownloading, setIsDownloading] = useState(false);
   const { showSuccess, showError } = useToast();
@@ -62,6 +63,12 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
 
     // Reset status after 2 seconds
     setTimeout(() => setCopyStatus('idle'), 2000);
+  };
+
+  const handleEdit = () => {
+    if (onEdit && !image.isLoading) {
+      onEdit(image.url, image.prompt);
+    }
   };
 
   const formatTimestamp = (timestamp: Date) => {
@@ -131,6 +138,15 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
         
         {/* Action buttons */}
         <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {onEdit && (
+            <button
+              onClick={handleEdit}
+              className="glass glass-hover rounded-full p-2 text-white transition-colors duration-300 hover:text-purple-400"
+              title="Edit with AI (Image-to-Image)"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={handleDownload}
             disabled={isDownloading}

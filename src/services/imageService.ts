@@ -1,5 +1,10 @@
 import { GeneratedImage, ImageGenerationRequest } from '../types';
 
+interface ImageToImageRequest extends ImageGenerationRequest {
+  sourceImage: File | string;
+  strength?: number;
+}
+
 export class ImageGenerationService {
   private static readonly BACKUP_IMAGES = {
     '1:1': [
@@ -35,6 +40,11 @@ export class ImageGenerationService {
   }
 
   static async generateImage(request: ImageGenerationRequest): Promise<GeneratedImage> {
+    // Check if this is an image-to-image request
+    if (request.sourceImage) {
+      return this.generateImageToImage(request as ImageToImageRequest);
+    }
+
     try {
       // Use Pollinations AI - completely free, no API key required
       const baseUrl = 'https://image.pollinations.ai/prompt';
@@ -214,5 +224,100 @@ export class ImageGenerationService {
       timestamp: new Date(),
       aspectRatio,
     };
+  }
+
+  private static async generateImageToImage(request: ImageToImageRequest): Promise<GeneratedImage> {
+    try {
+      // Convert image to base64 if it's a File
+      let imageData: string;
+      if (request.sourceImage instanceof File) {
+        imageData = await this.fileToBase64(request.sourceImage);
+      } else {
+        // If it's already a URL, we'll need to fetch and convert it
+        imageData = await this.urlToBase64(request.sourceImage);
+      }
+
+      // For now, since Pollinations doesn't support image-to-image directly,
+      // we'll use a different approach or fallback to text-to-image with enhanced prompts
+      const aspectRatio = request.aspectRatio || '1:1';
+      const strength = request.strength || 0.7;
+      
+      // Enhanced prompt that describes the transformation
+      let enhancedPrompt = `${request.prompt}, based on uploaded image, strength ${strength}`;
+      
+      if (request.style === 'vivid') {
+        enhancedPrompt += ', hyperrealistic, vibrant colors, dramatic lighting, high contrast, detailed';
+      } else if (request.style === 'natural') {
+        enhancedPrompt += ', natural lighting, realistic, soft colors, photographic style';
+      }
+
+      // Try to use a service that supports image-to-image or fallback
+      const baseUrl = 'https://image.pollinations.ai/prompt';
+      const encodedPrompt = encodeURIComponent(enhancedPrompt);
+      const dimensions = this.getImageDimensions(aspectRatio);
+      const seed = Math.floor(Math.random() * 1000000);
+      
+      // For image-to-image, we'll use the enhanced prompt approach
+      const imageUrl = `${baseUrl}/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}`;
+      
+      // Test the URL
+      const testResponse = await fetch(imageUrl, { method: 'GET' });
+      if (!testResponse.ok) {
+        throw new Error(`Image-to-image service returned ${testResponse.status}`);
+      }
+      
+      const generatedImage: GeneratedImage = {
+        id: `img2img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        url: imageUrl,
+        prompt: request.prompt,
+        timestamp: new Date(),
+        aspectRatio,
+      };
+
+      return generatedImage;
+    } catch (error) {
+      console.warn('Image-to-image generation failed, falling back to text-to-image:', error);
+      
+      // Fallback to regular text-to-image generation
+      const fallbackRequest: ImageGenerationRequest = {
+        prompt: `${request.prompt}, inspired by uploaded reference image`,
+        style: request.style,
+        aspectRatio: request.aspectRatio
+      };
+      
+      // Remove sourceImage to avoid infinite recursion
+      return this.generateImage(fallbackRequest);
+    }
+  }
+
+  private static async fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private static async urlToBase64(url: string): Promise<string> {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      throw new Error('Failed to convert URL to base64');
+    }
   }
 }

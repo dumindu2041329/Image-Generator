@@ -1,22 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Wand2, Loader2, Settings, Zap, RectangleHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { Send, Wand2, Loader2, Settings, Zap, RectangleHorizontal, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
+import ImageUpload from './ImageUpload';
+import { UploadedImage } from '../types';
 
 interface PromptInputProps {
-  onGenerate: (prompt: string, style?: 'vivid' | 'natural', aspectRatio?: '1:1' | '16:9' | '4:3') => void;
+  onGenerate: (prompt: string, style?: 'vivid' | 'natural', aspectRatio?: '1:1' | '16:9' | '4:3', sourceImage?: File | string, strength?: number) => void;
   isGenerating: boolean;
 }
 
-const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) => {
+export interface PromptInputRef {
+  setEditMode: (imageUrl: string, originalPrompt: string) => void;
+}
+
+const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, isGenerating }, ref) => {
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState<'vivid' | 'natural'>('vivid');
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '4:3'>('1:1');
   const [showSettings, setShowSettings] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null);
+  const [strength, setStrength] = useState(0.7);
+  const [showImageToImage, setShowImageToImage] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim() && !isGenerating) {
-      onGenerate(prompt.trim(), style, aspectRatio);
+      onGenerate(
+        prompt.trim(), 
+        style, 
+        aspectRatio, 
+        uploadedImage?.file, 
+        uploadedImage ? strength : undefined
+      );
     }
   };
 
@@ -36,6 +51,30 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
   useEffect(() => {
     adjustTextareaHeight();
   }, [prompt]);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    setEditMode: (imageUrl: string, originalPrompt: string) => {
+      // Convert URL to File-like object for editing
+      fetch(imageUrl)
+        .then(response => response.blob())
+        .then(blob => {
+          const file = new File([blob], 'edit-source.jpg', { type: blob.type });
+          const url = URL.createObjectURL(file);
+          
+          setUploadedImage({
+            file,
+            url,
+            name: 'Source image for editing'
+          });
+          
+          setPrompt(`Edit this image: ${originalPrompt}`);
+          setShowImageToImage(true);
+          setStrength(0.5); // Moderate transformation for editing
+        })
+        .catch(console.error);
+    }
+  }), []);
 
   const suggestedPrompts = [
     'A serene mountain landscape at sunset',
@@ -148,6 +187,22 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
               {/* Active indicator */}
               {showSettings && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowImageToImage(!showImageToImage)}
+              className={`glass-hover rounded-xl p-4 transition-all duration-300 relative ${
+                showImageToImage || uploadedImage
+                  ? 'text-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/25' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              title="Image-to-Image"
+            >
+              <ImageIcon className="w-5 h-5" />
+              {uploadedImage && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full"></div>
               )}
             </button>
             
@@ -263,6 +318,72 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
               </div>
             </div>
           )}
+
+          {/* Image-to-Image Panel */}
+          {showImageToImage && (
+            <div className="border-t border-white/20 bg-purple-800/20 backdrop-blur-sm">
+              <div className="p-6 space-y-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-white mb-2 flex items-center justify-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-purple-400" />
+                    Image-to-Image Generation
+                  </h3>
+                  <p className="text-sm text-gray-400">Upload a source image and describe how to transform it</p>
+                </div>
+
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-base text-white mb-4 font-semibold">
+                    Source Image
+                  </label>
+                  <ImageUpload
+                    onImageUpload={setUploadedImage}
+                    uploadedImage={uploadedImage}
+                    disabled={isGenerating}
+                  />
+                </div>
+
+                {/* Strength Control */}
+                {uploadedImage && (
+                  <div>
+                    <label className="block text-base text-white mb-4 font-semibold">
+                      Transformation Strength: {Math.round(strength * 100)}%
+                    </label>
+                    <div className="space-y-3">
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value={strength}
+                        onChange={(e) => setStrength(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                      />
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>Subtle (10%)</span>
+                        <span>Balanced (50%)</span>
+                        <span>Strong (100%)</span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Lower values keep more of the original image, higher values create more dramatic changes
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Usage Tips */}
+                <div className="glass rounded-xl p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30">
+                  <div className="text-sm text-purple-300 mb-2 font-medium">💡 Tips for better results:</div>
+                  <ul className="text-xs text-gray-400 space-y-1">
+                    <li>• Describe what you want to change about the image</li>
+                    <li>• Use specific style keywords (e.g., "cartoon", "oil painting", "photorealistic")</li>
+                    <li>• Lower strength preserves more original details</li>
+                    <li>• Higher strength allows more creative freedom</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </form>
 
@@ -284,6 +405,8 @@ const PromptInput: React.FC<PromptInputProps> = ({ onGenerate, isGenerating }) =
       </div>
     </div>
   );
-};
+});
+
+PromptInput.displayName = 'PromptInput';
 
 export default PromptInput;

@@ -5,7 +5,7 @@ import { useImageHistory } from '../hooks/useImageHistory';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
 import Header from '../components/Header';
-import PromptInput from '../components/PromptInput';
+import PromptInput, { PromptInputRef } from '../components/PromptInput';
 import ImageGrid from '../components/ImageGrid';
 import Footer from '../components/Footer';
 
@@ -18,6 +18,7 @@ const HomePage: React.FC = () => {
   const { showSuccess, showError, showWarning } = useToast();
   const prevUserRef = useRef(user);
   const imageGridRef = useRef<HTMLDivElement>(null);
+  const promptInputRef = useRef<PromptInputRef>(null);
 
   // This effect clears the locally generated images when the user logs out.
   useEffect(() => {
@@ -29,7 +30,13 @@ const HomePage: React.FC = () => {
     prevUserRef.current = user;
   }, [user]);
 
-  const handleGenerate = async (prompt: string, style?: 'vivid' | 'natural', aspectRatio?: '1:1' | '16:9' | '4:3') => {
+  const handleGenerate = async (
+    prompt: string, 
+    style?: 'vivid' | 'natural', 
+    aspectRatio?: '1:1' | '16:9' | '4:3',
+    sourceImage?: File | string,
+    strength?: number
+  ) => {
     setIsGenerating(true);
     
     // Create a loading placeholder
@@ -49,7 +56,9 @@ const HomePage: React.FC = () => {
       const generatedImage = await ImageGenerationService.generateImage({ 
         prompt, 
         style,
-        aspectRatio
+        aspectRatio,
+        sourceImage,
+        strength
       });
       
       // Replace loading placeholder with actual image
@@ -139,6 +148,20 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const handleEditImage = (imageUrl: string, originalPrompt: string) => {
+    // Scroll to prompt input and set up image-to-image editing
+    if (promptInputRef.current) {
+      // Set the source image and original prompt for editing
+      promptInputRef.current.setEditMode(imageUrl, originalPrompt);
+      
+      // Scroll to the prompt input
+      promptInputRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen">
       {/* Background decoration */}
@@ -167,8 +190,8 @@ const HomePage: React.FC = () => {
           </div>
         )}
         
-        <PromptInput onGenerate={handleGenerate} isGenerating={isGenerating} />
-        <ImageGrid ref={imageGridRef} images={images} />
+        <PromptInput ref={promptInputRef} onGenerate={handleGenerate} isGenerating={isGenerating} />
+        <ImageGrid ref={imageGridRef} images={images} onEditImage={handleEditImage} />
         <Footer />
       </div>
     </div>
