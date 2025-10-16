@@ -1,107 +1,144 @@
 import { GeneratedImage, ImageGenerationRequest } from '../types';
 
 export class ImageGenerationService {
-  // Use our server-side API endpoint instead of calling Replicate directly
   private static readonly SERVER_API_URL = '/api/generate-image';
   
-  // Check if we're in development or production
-  private static getBaseUrl(): string {
-    if (typeof window !== 'undefined') {
-      // Client-side
-      return window.location.origin;
-    }
-    return '';
-  }
+  // Development mode fallback - generate Pollinations URL directly
+  private static generatePollinationsURL(prompt: string, aspectRatio: string = '1:1'): string {
+    const getDimensions = (aspectRatio: string) => {
+      switch (aspectRatio) {
+        case '16:9':
+          return { width: 768, height: 432 };
+        case '4:3':
+          return { width: 640, height: 480 };
+        case '1:1':
+        default:
+          return { width: 512, height: 512 };
+      }
+    };
 
-  private static getImageDimensions(aspectRatio: '1:1' | '16:9' | '4:3' = '1:1'): { width: number; height: number } {
-    switch (aspectRatio) {
-      case '16:9':
-        return { width: 1344, height: 768 };
-      case '4:3':
-        return { width: 1152, height: 896 };
-      case '1:1':
-      default:
-        return { width: 1024, height: 1024 };
-    }
-  }
-
-  private static async fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    const dimensions = getDimensions(aspectRatio);
+    const enhancedPrompt = prompt + ', high quality, detailed';
+    const encodedPrompt = encodeURIComponent(enhancedPrompt);
+    const seed = Math.floor(Math.random() * 1000000);
+    
+    return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true`;
   }
 
   static async generateImage(request: ImageGenerationRequest): Promise<GeneratedImage> {
     try {
-      console.log('🎨 Generating image via server API:', request.prompt);
+      // Validate request
+      if (!request.prompt || request.prompt.trim().length === 0) {
+        throw new Error('Prompt is required');
+      }
 
-      // Prepare request body for server API
-      const requestBody: any = {
-        prompt: request.prompt,
-        aspectRatio: request.aspectRatio || '1:1',
-        guidanceScale: request.guidanceScale || 7.5,
-        inferenceSteps: request.inferenceSteps || 50,
-        scheduler: request.scheduler || 'DPMSolverMultistep',
-        seed: request.seed
+      console.log('🎨 Generating image with Pollinations AI:', request.prompt);
+
+      const requestBody = {
+        prompt: request.prompt.trim(),
+        aspectRatio: request.aspectRatio || '1:1'
       };
 
-      // Add optional parameters
-      if (request.negativePrompt) {
-        requestBody.negativePrompt = request.negativePrompt;
-      }
-
-      // Handle image-to-image
-      if (request.sourceImage) {
-        if (typeof request.sourceImage === 'string') {
-          requestBody.sourceImage = request.sourceImage;
-        } else {
-          requestBody.sourceImage = await this.fileToBase64(request.sourceImage);
-        }
-        if (request.strength) {
-          requestBody.strength = request.strength;
-        }
-      }
-
-      console.log('Making request to server API...');
+      console.log('Request body:', requestBody);
+      console.log('Making request to:', this.SERVER_API_URL);
       
-      // Call our server-side API endpoint
-      const response = await fetch(this.SERVER_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
+      let response;
+      try {
+        response = await fetch(this.SERVER_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+      } catch (fetchError) {
+        console.warn('API server not available, using direct Pollinations integration');
+        // Fallback to direct Pollinations URL generation for development
+        const imageUrl = this.generatePollinationsURL(request.prompt.trim(), request.aspectRatio || '1:1');
+        const generatedImage = {
+          id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          url: imageUrl,
+          prompt: request.prompt.trim(),
+          aspectRatio: request.aspectRatio || '1:1',
+          timestamp: new Date()
+        };
+        console.log('✅ Direct Pollinations generation successful:', generatedImage.id);
+        console.log('Generated image URL:', generatedImage.url);
+        return generatedImage;
+      }
 
       console.log('Server response status:', response.status);
+      console.log('Server response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('❌ Server API error:', errorData);
+        // Special handling for 404 - likely development mode
+        if (response.status === 404) {
+          console.warn('API endpoint not found (404), using direct Pollinations integration for development');
+          const imageUrl = this.generatePollinationsURL(request.prompt.trim(), request.aspectRatio || '1:1');
+          const generatedImage = {
+            id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            url: imageUrl,
+            prompt: request.prompt.trim(),
+            aspectRatio: request.aspectRatio || '1:1',
+            timestamp: new Date()
+          };
+          console.log('✅ Direct Pollinations generation successful:', generatedImage.id);
+          console.log('Generated image URL:', generatedImage.url);
+          return generatedImage;
+        }
         
-        // Extract error message
+        let errorData;
+        try {
+          // Clone the response so we can read it twice if needed
+          const responseClone = response.clone();
+          errorData = await response.json();
+        } catch (jsonError) {
+          console.error('Failed to parse error response as JSON:', jsonError);
+          try {
+            const responseClone = response.clone();
+            const textError = await responseClone.text();
+            console.error('Raw error response:', textError);
+            errorData = { error: `Server error (${response.status}): ${textError}` };
+          } catch (textError) {
+            console.error('Failed to read error response as text:', textError);
+            errorData = { error: `Server error (${response.status})` };
+          }
+        }
+        
+        console.error('❌ Server API error:', errorData);
         const errorMessage = errorData.error || `Server error (${response.status})`;
         throw new Error(errorMessage);
       }
 
-      const generatedImage = await response.json();
+      let generatedImage;
+      try {
+        generatedImage = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse successful response as JSON:', jsonError);
+        throw new Error('Server returned invalid response format');
+      }
+      
+      // Validate response structure
+      if (!generatedImage || !generatedImage.url || !generatedImage.id) {
+        console.error('Invalid response structure:', generatedImage);
+        throw new Error('Server returned incomplete image data');
+      }
       
       // Convert timestamp back to Date object
       generatedImage.timestamp = new Date(generatedImage.timestamp);
       
-      console.log('✅ SDXL generation successful:', generatedImage.id);
+      console.log('✅ Pollinations generation successful:', generatedImage.id);
+      console.log('Generated image URL:', generatedImage.url);
       return generatedImage;
 
     } catch (error) {
-      console.error('❌ SDXL generation failed:', error);
+      console.error('❌ Pollinations generation failed:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       
-      // Re-throw with user-friendly message
       if (error instanceof Error) {
         throw error;
       }
@@ -110,31 +147,8 @@ export class ImageGenerationService {
     }
   }
 
-  // Test server API connection
+  // Test Pollinations API connection (always returns true since no API key needed)
   static async testApiKey(): Promise<boolean> {
-    try {
-      console.log('Testing server API connection...');
-      
-      const response = await fetch(this.SERVER_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: 'test',
-          aspectRatio: '1:1',
-          guidanceScale: 7.5,
-          inferenceSteps: 20
-        })
-      });
-
-      // Even if generation fails, a 500 error means the API is configured
-      // A 401/403 would mean API key issues
-      return response.status !== 401 && response.status !== 403;
-      
-    } catch (error) {
-      console.error('Server API test failed:', error);
-      return false;
-    }
+    return true; // Pollinations AI requires no API key
   }
 }

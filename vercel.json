@@ -6,7 +6,7 @@
   "devCommand": "yarn dev",
   "functions": {
     "api/generate-image.js": {
-      "maxDuration": 300
+      "maxDuration": 60
     }
   },
   "rewrites": [

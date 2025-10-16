@@ -8,7 +8,6 @@ import Header from '../components/Header';
 import PromptInput, { PromptInputRef } from '../components/PromptInput';
 import ImageGrid from '../components/ImageGrid';
 import Footer from '../components/Footer';
-import DebugPanel from '../components/DebugPanel';
 
 const HomePage: React.FC = () => {
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -70,7 +69,7 @@ const HomePage: React.FC = () => {
       // Show success notification
       showSuccess(
         'Image Generated Successfully!',
-        `Created a ${request.aspectRatio || '1:1'} image using SDXL.`
+        `Created a ${request.aspectRatio || '1:1'} image using Pollinations AI.`
       );
 
       // Scroll to generated images section with enhanced transition
@@ -102,7 +101,7 @@ const HomePage: React.FC = () => {
             request.prompt,
             generatedImage.url,
             request.aspectRatio || '1:1',
-            'sdxl' // Indicate SDXL was used
+            'pollinations' // Indicate Pollinations AI was used
           );
           showSuccess(
             'Image Saved!',
@@ -147,19 +146,6 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleEditImage = (imageUrl: string, originalPrompt: string) => {
-    // Scroll to prompt input and set up image-to-image editing
-    if (promptInputRef.current) {
-      // Set the source image and original prompt for editing
-      promptInputRef.current.setEditMode(imageUrl, originalPrompt);
-      
-      // Scroll to the prompt input
-      promptInputRef.current.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }
-  };
 
   return (
     <div className="min-h-screen">
@@ -174,15 +160,15 @@ const HomePage: React.FC = () => {
         
         {/* Success notification for authenticated users */}
         {isConfigured && user && (
-          <div className="max-w-4xl mx-auto px-4 mb-6">
-            <div className="glass rounded-2xl p-4 border-l-4 border-green-500">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">✓</span>
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 mb-4 sm:mb-6">
+            <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-4 border-l-4 border-green-500">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-xs sm:text-sm font-bold">✓</span>
                 </div>
                 <div>
-                  <p className="text-green-200 font-medium">Authentication Active</p>
-                  <p className="text-green-300 text-sm">Your generated images are automatically saved to your history!</p>
+                  <p className="text-green-200 font-medium text-sm sm:text-base">Authentication Active</p>
+                  <p className="text-green-300 text-xs sm:text-sm">Your generated images are automatically saved to your history!</p>
                 </div>
               </div>
             </div>
@@ -190,9 +176,8 @@ const HomePage: React.FC = () => {
         )}
         
         <PromptInput ref={promptInputRef} onGenerate={handleGenerate} isGenerating={isGenerating} />
-        <ImageGrid ref={imageGridRef} images={images} onEditImage={handleEditImage} />
+        <ImageGrid ref={imageGridRef} images={images} />
         <Footer />
-        <DebugPanel />
       </div>
     </div>
   );

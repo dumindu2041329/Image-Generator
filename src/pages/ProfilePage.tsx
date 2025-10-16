@@ -302,21 +302,21 @@ const ProfilePage: React.FC = () => {
         
         <div className="relative z-10">
           {/* Header */}
-          <div className="glass border-b border-white/20 p-6">
+          <div className="glass border-b border-white/20 p-3 sm:p-4 md:p-6">
             <div className="max-w-4xl mx-auto">
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4">
                 <button
                   onClick={() => navigate('/')}
-                  className="glass glass-hover rounded-xl p-3 text-gray-400 hover:text-white transition-colors"
+                  className="glass glass-hover rounded-lg sm:rounded-xl p-2 sm:p-3 text-gray-400 hover:text-white transition-colors flex-shrink-0"
                 >
-                  <ArrowLeft className="w-6 h-6" />
+                  <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
                 <div>
-                  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                    <User className="w-8 h-8" />
-                    Profile Settings
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                    <User className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
+                    <span className="line-clamp-1">Profile Settings</span>
                   </h1>
-                  <p className="text-gray-400 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-400 mt-0.5 sm:mt-1">
                     Please sign in to access your profile
                   </p>
                 </div>
@@ -380,13 +380,13 @@ const ProfilePage: React.FC = () => {
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <div className="max-w-4xl mx-auto space-y-8">
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 md:space-y-8">
             
             {/* Profile Image Section */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">Profile Image</h2>
-              <div className="flex items-center gap-6">
+            <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Profile Image</h2>
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                 <ProfileImage
                   imageUrl={profileImageUrl}
                   fullName={userFullName}
@@ -396,48 +396,48 @@ const ProfilePage: React.FC = () => {
                   onImageChange={handleImageUpload}
                   loading={loading.image}
                 />
-                <div>
-                  <h3 className="text-lg font-medium text-white mb-2">
+                <div className="text-center sm:text-left">
+                  <h3 className="text-base sm:text-lg font-medium text-white mb-1 sm:mb-2">
                     {userFullName || 'User'}
                   </h3>
-                  <p className="text-gray-400 mb-4">{userEmail}</p>
-                  <p className="text-sm text-gray-300">
-                    Click on your profile image to upload a new one. <br />
-                    Supported formats: JPEG, PNG, WebP (max 5MB)
+                  <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">{userEmail}</p>
+                  <p className="text-xs sm:text-sm text-gray-300">
+                    Click on your profile image to upload a new one. <br className="hidden sm:block" />
+                    <span className="sm:inline"> </span>Supported formats: JPEG, PNG, WebP (max 5MB)
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Profile Information Section */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">Profile Information</h2>
-              <form onSubmit={handleProfileUpdate} className="space-y-4">
+            <div className="glass rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6">Profile Information</h2>
+              <form onSubmit={handleProfileUpdate} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">
                     Full Name
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-3 glass rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 ${
+                      className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 glass rounded-lg sm:rounded-xl text-sm sm:text-base text-white placeholder-gray-400 focus:outline-none focus:ring-2 ${
                         errors.fullName ? 'focus:ring-red-500 border-red-500' : 'focus:ring-blue-500'
                       }`}
                       placeholder="Enter your full name"
                     />
                   </div>
                   {errors.fullName && (
-                    <p className="text-red-400 text-sm mt-1">{errors.fullName}</p>
+                    <p className="text-red-400 text-xs sm:text-sm mt-1">{errors.fullName}</p>
                   )}
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading.profile}
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading.profile ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

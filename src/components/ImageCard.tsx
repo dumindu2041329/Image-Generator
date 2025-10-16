@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Copy, Clock, Check, RectangleHorizontal, Edit } from 'lucide-react';
+import { Download, Copy, Clock, Check, RectangleHorizontal } from 'lucide-react';
 import { GeneratedImage } from '../types';
 import { copyToClipboard } from '../utils/clipboard';
 import { useToast } from '../contexts/ToastContext';
@@ -7,10 +7,9 @@ import { downloadImage, generateImageFilename } from '../utils/download';
 
 interface ImageCardProps {
   image: GeneratedImage;
-  onEdit?: (imageUrl: string, prompt: string) => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isDownloading, setIsDownloading] = useState(false);
   const { showSuccess, showError } = useToast();
@@ -65,11 +64,6 @@ const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
     setTimeout(() => setCopyStatus('idle'), 2000);
   };
 
-  const handleEdit = () => {
-    if (onEdit && !image.isLoading) {
-      onEdit(image.url, image.prompt);
-    }
-  };
 
   const formatTimestamp = (timestamp: Date) => {
     return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
@@ -104,8 +98,8 @@ const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
 
   if (image.isLoading) {
     return (
-      <div className="glass rounded-2xl overflow-hidden">
-        <div className={`bg-gray-800 relative overflow-hidden ${getAspectRatioClass(image.aspectRatio)}`}>
+      <div className="glass rounded-xl overflow-hidden w-full max-w-sm mx-auto min-h-[400px] flex flex-col">
+        <div className={`bg-gray-800 relative overflow-hidden flex-1 ${getAspectRatioClass(image.aspectRatio)}`}>
           <div className="absolute inset-0 bg-gray-700/40"></div>
         </div>
         <div className="p-4">
@@ -117,17 +111,17 @@ const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
   }
 
   return (
-    <div className="glass rounded-2xl overflow-hidden group hover:scale-105 transition-all duration-300 floating-animation">
-      <div className="relative overflow-hidden">
+    <div className="glass rounded-xl overflow-hidden group hover:scale-105 transition-all duration-300 floating-animation w-full max-w-sm mx-auto min-h-[400px] flex flex-col">
+      <div className="relative overflow-hidden flex-1">
         <img
           src={image.url}
           alt={image.prompt}
-          className={`w-full object-cover transition-transform duration-300 group-hover:scale-110 ${getAspectRatioClass(image.aspectRatio)}`}
+          className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 ${getAspectRatioClass(image.aspectRatio)}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         
         {/* Aspect Ratio Badge */}
-        <div className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="glass rounded-lg px-2 py-1 text-xs text-white border border-white/20">
             <div className="flex items-center gap-1">
               <RectangleHorizontal className="w-3 h-3" />
@@ -137,16 +131,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
         </div>
         
         {/* Action buttons */}
-        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          {onEdit && (
-            <button
-              onClick={handleEdit}
-              className="glass glass-hover rounded-full p-2 text-white transition-colors duration-300 hover:text-purple-400"
-              title="Edit with AI (Image-to-Image)"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          )}
+        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <button
             onClick={handleDownload}
             disabled={isDownloading}
@@ -190,7 +175,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ image, onEdit }) => {
 
         {/* Copy status indicator */}
         {copyStatus !== 'idle' && (
-          <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <div className={`glass rounded-lg px-3 py-1 text-sm ${
               copyStatus === 'success' 
                 ? 'text-green-400 border-green-500/30' 
