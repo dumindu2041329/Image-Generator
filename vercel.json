@@ -15,12 +15,6 @@
       "destination": "/index.html"
     }
   ],
-  "routes": [
-    {
-      "src": "/api/generate-image",
-      "dest": "/api/generate-image.js"
-    }
-  ],
   "headers": [
     {
       "source": "/assets/(.*)",
