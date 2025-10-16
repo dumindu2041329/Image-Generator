@@ -32,15 +32,8 @@ const HomePage: React.FC = () => {
 
   const handleGenerate = (request: {
     prompt: string;
-    negativePrompt?: string;
     aspectRatio?: '1:1' | '16:9' | '4:3';
     generationStyle?: 'vivid' | 'natural';
-    sourceImage?: File | string;
-    strength?: number;
-    guidanceScale?: number;
-    inferenceSteps?: number;
-    scheduler?: string;
-    seed?: number;
   }) => {
     setIsGenerating(true);
     const startTime = performance.now();
@@ -83,7 +76,7 @@ const HomePage: React.FC = () => {
           request.prompt,
           generatedImage.url,
           request.aspectRatio || '1:1',
-          request.generationStyle || 'vivid' // Use selected style or default to vivid
+          request.generationStyle || 'vivid' // Use selected style from UI
         ).then(() => {
           // Only show save success if no other notifications are showing
           setTimeout(() => {
