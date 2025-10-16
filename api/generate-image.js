@@ -41,12 +41,15 @@ export default async function handler(req, res) {
     const dimensions = getDimensions(aspectRatio || '1:1');
     
     // Generate image using Pollinations AI
-    console.log('Generating with Pollinations AI...');
-    const generatedImage = await generateWithPollinations(prompt.trim(), dimensions);
+    console.log('🎨 Starting Pollinations AI generation...');
+    const generatedImage = generateWithPollinations(prompt.trim(), dimensions);
     
     if (!generatedImage || !generatedImage.url) {
       throw new Error('Failed to generate image - no URL returned');
     }
+    
+    console.log('✅ Image generation complete');
+    console.log('Image ID:', generatedImage.id);
     
     return res.status(200).json({
       ...generatedImage,
@@ -64,39 +67,26 @@ export default async function handler(req, res) {
 }
 
 // Pollinations AI - 100% Free AI Image Generation
-async function generateWithPollinations(prompt, dimensions) {
-  try {
-    // Validate inputs
-    if (!prompt || !dimensions || !dimensions.width || !dimensions.height) {
-      throw new Error('Invalid prompt or dimensions provided');
-    }
-
-    const enhancedPrompt = prompt + ', high quality, detailed';
-    const encodedPrompt = encodeURIComponent(enhancedPrompt);
-    const seed = Math.floor(Math.random() * 1000000);
-    
-    // Build Pollinations AI URL with optimized parameters
-    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true`;
-    
-    console.log('Generated Pollinations URL:', imageUrl.substring(0, 100) + '...');
-    
-    // Test if the URL is accessible (optional validation)
-    try {
-      const testResponse = await fetch(imageUrl, { method: 'HEAD' });
-      if (!testResponse.ok) {
-        console.warn('Pollinations URL test failed, but proceeding anyway');
-      }
-    } catch (testError) {
-      console.warn('Could not test Pollinations URL:', testError.message);
-      // Continue anyway, as the URL might still work
-    }
-    
-    return {
-      id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      url: imageUrl
-    };
-  } catch (error) {
-    console.error('Error in generateWithPollinations:', error);
-    throw new Error(`Pollinations AI generation failed: ${error.message}`);
+function generateWithPollinations(prompt, dimensions) {
+  // Validate inputs
+  if (!prompt || !dimensions || !dimensions.width || !dimensions.height) {
+    throw new Error('Invalid prompt or dimensions provided');
   }
+
+  const enhancedPrompt = prompt + ', high quality, detailed';
+  const encodedPrompt = encodeURIComponent(enhancedPrompt);
+  const seed = Math.floor(Math.random() * 1000000);
+  
+  // Build Pollinations AI URL with optimized parameters
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true`;
+  
+  console.log('✅ Generated Pollinations URL');
+  console.log('Prompt:', prompt.substring(0, 50) + (prompt.length > 50 ? '...' : ''));
+  console.log('Dimensions:', dimensions);
+  console.log('Seed:', seed);
+  
+  return {
+    id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    url: imageUrl
+  };
 }

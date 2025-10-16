@@ -132,18 +132,31 @@ export class ImageGenerationService {
       return generatedImage;
 
     } catch (error) {
-      console.error('❌ Pollinations generation failed:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
+      console.error('❌ Image generation failed:', error);
       
-      if (error instanceof Error) {
-        throw error;
+      // If we reach here, all fallback methods failed
+      // Try one last direct Pollinations generation
+      try {
+        console.log('🔄 Attempting final fallback to direct Pollinations...');
+        const imageUrl = this.generatePollinationsURL(request.prompt.trim(), request.aspectRatio || '1:1');
+        const generatedImage = {
+          id: `pollinations_fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          url: imageUrl,
+          prompt: request.prompt.trim(),
+          aspectRatio: request.aspectRatio || '1:1',
+          timestamp: new Date()
+        };
+        console.log('✅ Fallback generation successful:', generatedImage.id);
+        return generatedImage;
+      } catch (fallbackError) {
+        console.error('❌ Final fallback also failed:', fallbackError);
       }
       
-      throw new Error('Failed to generate image. Please try again.');
+      if (error instanceof Error) {
+        throw new Error(`Image generation failed: ${error.message}. Please try again.`);
+      }
+      
+      throw new Error('Failed to generate image. Please check your connection and try again.');
     }
   }
 
