@@ -42,14 +42,20 @@ export const createSupabaseClient = () => {
             };
           }
         } else if (urlString.includes('/storage/v1/object/')) {
-          // For storage API calls, ensure proper Content-Type is set
+          // For storage API calls, DON'T set Content-Type for file uploads
+          // Let the browser/Supabase determine the correct MIME type from the blob
+          // Only set JSON content-type for non-file operations (like listing, deleting)
           const headers = options.headers as Record<string, string> || {};
-          if (options.body && !headers['Content-Type']) {
+          const isFileUpload = options.body && (options.body instanceof Blob || options.body instanceof File || options.body instanceof FormData);
+          
+          if (options.body && !headers['Content-Type'] && !isFileUpload) {
+            // Only set JSON content type for metadata operations, not file uploads
             options.headers = {
               ...options.headers,
               'Content-Type': 'application/json',
             };
           }
+          // For file uploads, let Supabase/browser handle Content-Type automatically
         }
         
         if (clerkToken) {
@@ -58,10 +64,10 @@ export const createSupabaseClient = () => {
             ...options.headers,
             Authorization: `Bearer ${clerkToken}`,
           };
-          // Debug: log token for troubleshooting
-          console.log('Supabase request with token:', clerkToken.substring(0, 50) + '...');
+          // Debug: log token info for troubleshooting
+          console.log('Supabase request with valid token (length:', clerkToken.length, ')');
         } else {
-          console.warn('No Clerk token available for Supabase request');
+          console.warn('⚠️  No Clerk token available for Supabase request - this will likely cause 400/401 errors');
         }
         
         // Debug storage requests
@@ -74,17 +80,20 @@ export const createSupabaseClient = () => {
           });
         }
         
-        // Fix storage API requests - ensure body is properly formatted
+        // Fix storage API requests - only format JSON bodies, not file uploads
         if (urlString.includes('/storage/v1/object/') && options.body) {
-          try {
-            // If body is a string, parse it and re-stringify to ensure proper formatting
-            if (typeof options.body === 'string') {
+          const isFileUpload = options.body instanceof Blob || options.body instanceof File || options.body instanceof FormData;
+          
+          if (!isFileUpload && typeof options.body === 'string') {
+            try {
+              // Only format JSON strings, not file data
               const parsedBody = JSON.parse(options.body);
               options.body = JSON.stringify(parsedBody);
+            } catch (error) {
+              console.warn('Failed to parse storage request body:', error);
             }
-          } catch (error) {
-            console.warn('Failed to parse storage request body:', error);
           }
+          // For file uploads (Blob/File/FormData), leave body as-is
         }
         
         return fetch(url, options);
@@ -96,36 +105,9 @@ export const createSupabaseClient = () => {
 // Create Supabase client instance
 export const supabase = createSupabaseClient();
 
-// Create a completely clean storage client without any custom fetch
-export const createStorageClient = () => {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-
-  // Use the default Supabase client without any custom fetch modifications
-  return createClient(supabaseUrl, supabaseAnonKey);
-};
-
-// Create storage client instance
-export const storageClient = createStorageClient();
-
-// Helper function to get authenticated storage client
+// Reuse the main client to avoid multiple GoTrueClient instances
 export const getAuthenticatedStorageClient = async () => {
-  if (!storageClient) return null;
-  
-  const clerkToken = await getClerkToken();
-  console.log('Getting authenticated storage client, token available:', !!clerkToken);
-  
-  if (!clerkToken) return storageClient;
-  
-  // Create a new client with authentication for this specific request
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${clerkToken}`,
-      },
-    },
-  });
+  return supabase; // Reuse main client to avoid multiple GoTrueClient instances
 };
 
 // Database schema types
@@ -135,10 +117,10 @@ export interface SavedImage {
   prompt: string;
   image_url: string;
   aspect_ratio: '1:1' | '16:9' | '4:3';
-  style: 'vivid' | 'natural';
+  style: 'vivid' | 'natural'; // Only vivid and natural are allowed by database check constraint
   created_at: string;
   is_favorite: boolean;
-  storage_file_path: string | null;
+  storage_file_path?: string | null; // Optional since Pollinations images may not be stored
 }
 
 // User interface for Clerk integration

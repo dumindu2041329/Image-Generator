@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Send, Wand2, Settings, Zap, RectangleHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { Send, Wand2, Settings, Zap, RectangleHorizontal, ChevronDown, ChevronUp, Palette } from 'lucide-react';
 
 interface PromptInputProps {
   onGenerate: (request: {
     prompt: string;
     aspectRatio?: '1:1' | '16:9' | '4:3';
+    generationStyle?: 'vivid' | 'natural';
   }) => void;
   isGenerating: boolean;
 }
@@ -16,16 +17,24 @@ export interface PromptInputRef {
 const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, isGenerating }, ref) => {
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '4:3'>('1:1');
+  const [generationStyle, setGenerationStyle] = useState<'vivid' | 'natural'>('vivid');
   const [showSettings, setShowSettings] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const submitLockRef = useRef(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitLockRef.current) return;
     if (prompt.trim() && !isGenerating) {
+      submitLockRef.current = true;
       onGenerate({
         prompt: prompt.trim(),
-        aspectRatio
+        aspectRatio,
+        generationStyle
       });
+      // Release the lock shortly after to avoid accidental double submits
+      setTimeout(() => { submitLockRef.current = false; }, 500);
     }
   };
 
@@ -93,22 +102,31 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
     },
   ] as const;
 
+  const generationStyleOptions = [
+    {
+      value: 'vivid',
+      label: 'Vivid Style',
+      description: 'Bold & Dramatic Images',
+      icon: '🎨',
+      features: ['High Contrast', 'Vibrant Colors', 'Artistic'],
+      color: 'from-purple-500 to-pink-600',
+      borderColor: 'border-purple-500/30'
+    },
+    {
+      value: 'natural',
+      label: 'Natural Style',
+      description: 'Realistic & Subtle',
+      icon: '🌿',
+      features: ['Photo-realistic', 'Natural Colors', 'Balanced'],
+      color: 'from-blue-500 to-cyan-600',
+      borderColor: 'border-blue-500/30'
+    },
+  ] as const;
+
   return (
     <div className="max-w-4xl mx-auto px-3 sm:px-4 mb-6 sm:mb-8 md:mb-12">
-      {/* Free AI Notice */}
-      <div className="glass rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-4 sm:mb-6 border-l-4 border-green-500">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-            <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-          </div>
-          <div>
-            <p className="text-green-200 font-medium text-sm sm:text-base">100% Free AI Image Generation</p>
-            <p className="text-green-300 text-xs sm:text-sm">Powered by Pollinations AI • No API keys, no limits, no costs!</p>
-          </div>
-        </div>
-      </div>
 
-      <form onSubmit={handleSubmit} className="relative">
+      <form ref={formRef} onSubmit={handleSubmit} className="relative">
         <div className="glass rounded-xl sm:rounded-2xl p-1">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 p-2 sm:p-4">
             <div className="flex-1 relative">
@@ -120,7 +138,8 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSubmit(e as any);
+                    // Trigger the form's submit event instead of calling handleSubmit directly
+                    formRef.current?.requestSubmit();
                   }
                 }}
                 placeholder="Describe the image you want to generate..."
@@ -181,7 +200,51 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
                   <p className="text-xs sm:text-sm text-gray-400">Customize your AI image generation</p>
                 </div>
 
-                {/* Aspect Ratio Selection - More Prominent */}
+                {/* Generation Style Selection */}
+                <div>
+                  <label className="block text-sm sm:text-base text-white mb-3 sm:mb-4 font-semibold flex items-center gap-2">
+                    <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                    Choose Generation Style
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {generationStyleOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setGenerationStyle(option.value as 'vivid' | 'natural')}
+                        className={`relative p-3 sm:p-4 rounded-lg sm:rounded-xl text-left transition-all duration-300 transform hover:scale-105 ${
+                          generationStyle === option.value
+                            ? `bg-gradient-to-br ${option.color} text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400`
+                            : 'glass glass-hover text-gray-300 hover:bg-white/15'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 sm:gap-3 mb-1.5 sm:mb-2">
+                          <span className="text-xl sm:text-2xl">{option.icon}</span>
+                          <div>
+                            <div className="font-semibold text-sm sm:text-base">{option.label}</div>
+                            <div className="text-xs sm:text-sm opacity-80">{option.description}</div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {option.features.map((feature, idx) => (
+                            <span key={idx} className="text-xs px-2 py-1 rounded-full bg-white/20 opacity-75">
+                              {feature}
+                            </span>
+                          ))}
+                        </div>
+                        
+                        {/* Selection Indicator */}
+                        {generationStyle === option.value && (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                            <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Aspect Ratio Selection */}
                 <div>
                   <label className="block text-sm sm:text-base text-white mb-3 sm:mb-4 font-semibold flex items-center gap-2">
                     <RectangleHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
@@ -220,26 +283,18 @@ const PromptInput = forwardRef<PromptInputRef, PromptInputProps>(({ onGenerate, 
                   </div>
                 </div>
 
-                {/* Free AI Info */}
-                <div className="glass rounded-lg sm:rounded-xl p-4 sm:p-6 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30">
-                  <div className="text-center">
-                    <div className="text-base sm:text-lg font-semibold text-white mb-2">🎆 Completely Free AI Generation</div>
-                    <div className="text-xs sm:text-sm text-gray-300 mb-3 sm:mb-4">
-                      Your images are generated using Pollinations AI for high-quality results:
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-gray-300">Pollinations AI - Free & Unlimited</span>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Current Settings Summary */}
-                <div className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30">
-                  <div className="text-xs sm:text-sm text-green-300 mb-2 font-medium">Ready to Generate:</div>
+                <div className="glass rounded-lg sm:rounded-xl p-3 sm:p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30">
+                  <div className="text-xs sm:text-sm text-purple-300 mb-2 font-medium">Ready to Generate:</div>
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm">
                     <div className="flex items-center gap-2">
-                      <RectangleHorizontal className="w-4 h-4 text-green-400" />
+                      <Palette className="w-4 h-4 text-purple-400" />
+                      <span className="text-gray-300">
+                        {generationStyleOptions.find(opt => opt.value === generationStyle)?.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RectangleHorizontal className="w-4 h-4 text-blue-400" />
                       <span className="text-gray-300">
                         {aspectRatioOptions.find(opt => opt.value === aspectRatio)?.label} ({aspectRatio})
                       </span>

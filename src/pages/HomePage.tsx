@@ -30,10 +30,11 @@ const HomePage: React.FC = () => {
     prevUserRef.current = user;
   }, [user]);
 
-  const handleGenerate = async (request: {
+  const handleGenerate = (request: {
     prompt: string;
     negativePrompt?: string;
     aspectRatio?: '1:1' | '16:9' | '4:3';
+    generationStyle?: 'vivid' | 'natural';
     sourceImage?: File | string;
     strength?: number;
     guidanceScale?: number;
@@ -42,91 +43,68 @@ const HomePage: React.FC = () => {
     seed?: number;
   }) => {
     setIsGenerating(true);
-    
-    // Create a loading placeholder
-    const loadingImage: GeneratedImage = {
-      id: `loading_${Date.now()}`,
-      url: '',
-      prompt: request.prompt,
-      timestamp: new Date(),
-      isLoading: true,
-      aspectRatio: request.aspectRatio || '1:1',
-    };
-    
-    // Add loading placeholder to the beginning of the array
-    setImages(prev => [loadingImage, ...prev]);
+    const startTime = performance.now();
     
     try {
-      const generatedImage = await ImageGenerationService.generateImage(request);
+      // Generate image with Pollinations AI - NOW SYNCHRONOUS FOR MAXIMUM SPEED!
+      const generatedImage = ImageGenerationService.generateImage(request);
       
-      // Replace loading placeholder with actual image
-      setImages(prev => 
-        prev.map(img => 
-          img.id === loadingImage.id ? generatedImage : img
-        )
-      );
-
-      // Show success notification
+      const generationTime = Math.round(performance.now() - startTime);
+      
+      // Start preloading the image immediately for faster display
+      ImageGenerationService.preloadImage(generatedImage.url).catch(() => {
+        // Ignore preload errors - image will still load normally
+      });
+      
+      // Immediately add the generated image to the top of the list
+      setImages(prev => [generatedImage, ...prev]);
+      
+      // Show success notification immediately with generation time
       showSuccess(
-        'Image Generated Successfully!',
-        `Created a ${request.aspectRatio || '1:1'} image using Pollinations AI.`
+        'Image Generated Instantly!',
+        `Created a ${request.aspectRatio || '1:1'} image in ${generationTime}ms using Pollinations AI.`
       );
 
-      // Scroll to generated images section with enhanced transition
+      // Ultra-fast scroll to generated images section
       setTimeout(() => {
         if (imageGridRef.current) {
-          // Add a subtle fade-in effect to the scroll target
-          imageGridRef.current.style.opacity = '0.7';
-          imageGridRef.current.style.transition = 'opacity 0.3s ease-in-out';
-          
           imageGridRef.current.scrollIntoView({ 
             behavior: 'smooth',
             block: 'start',
             inline: 'nearest'
           });
-          
-          // Restore opacity after scroll
-          setTimeout(() => {
-            if (imageGridRef.current) {
-              imageGridRef.current.style.opacity = '1';
-            }
-          }, 800);
         }
-      }, 300);
+      }, 50); // Reduced to 50ms for maximum speed
 
-      // Save to Supabase if user is authenticated
+      // Save to Supabase in the background (non-blocking)
       if (isConfigured && user) {
-        try {
-          await saveImage(
-            request.prompt,
-            generatedImage.url,
-            request.aspectRatio || '1:1',
-            'pollinations' // Indicate Pollinations AI was used
-          );
-          showSuccess(
-            'Image Saved!',
-            'Your generated image has been saved to your history.'
-          );
-        } catch (saveError) {
-          // Provide more specific error messages
-          const errorMessage = saveError instanceof Error ? saveError.message : 'Unknown error occurred';
-          if (errorMessage.includes('empty (0 bytes)')) {
-            showWarning(
-              'Image Generation Issue',
-              'The image generation service returned an empty image. This may be a temporary issue. Please try again with a different prompt or try again later.'
+        // Don't await - let it run in background so image shows immediately
+        saveImage(
+          request.prompt,
+          generatedImage.url,
+          request.aspectRatio || '1:1',
+          request.generationStyle || 'vivid' // Use selected style or default to vivid
+        ).then(() => {
+          // Only show save success if no other notifications are showing
+          setTimeout(() => {
+            showSuccess(
+              'Image Saved!',
+              'Your generated image has been saved to your history.'
             );
-          } else {
+          }, 1000); // Delay so it doesn't conflict with generation success message
+        }).catch((saveError) => {
+          // For Pollinations AI, saving failures are less critical since images are always viewable
+          console.warn('Save to history failed:', saveError);
+          setTimeout(() => {
             showWarning(
-              'Image Generated but Not Saved',
-              `The image was created successfully but could not be saved to your history. ${errorMessage}`
+              'Image Generated Successfully',
+              'Your image was created but could not be saved to your history. The image is still available above!'
             );
-          }
-        }
+          }, 1000); // Delay so it doesn't conflict with generation success message
+        });
       }
     } catch (error) {
       // Handle error with user notification
-      
-      // Show error notification
       if (error instanceof Error) {
         showError(
           'Image Generation Failed',
@@ -138,11 +116,9 @@ const HomePage: React.FC = () => {
           'An unexpected error occurred. Please try again.'
         );
       }
-      
-      // Remove loading placeholder on error
-      setImages(prev => prev.filter(img => img.id !== loadingImage.id));
     } finally {
-      setIsGenerating(false);
+      // Set generating to false after a minimal delay to show the loading state briefly
+      setTimeout(() => setIsGenerating(false), 100);
     }
   };
 

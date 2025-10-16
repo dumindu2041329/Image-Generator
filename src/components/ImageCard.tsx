@@ -111,12 +111,24 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   }
 
   return (
-    <div className="glass rounded-xl overflow-hidden group hover:scale-105 transition-all duration-300 floating-animation w-full max-w-sm mx-auto min-h-[400px] flex flex-col">
+    <div 
+      className="glass rounded-xl overflow-hidden group hover:scale-105 transition-all duration-300 floating-animation w-full max-w-sm mx-auto min-h-[400px] flex flex-col animate-fade-in-up"
+      data-image-id={image.id}
+    >
       <div className="relative overflow-hidden flex-1">
         <img
           src={image.url}
           alt={image.prompt}
           className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 ${getAspectRatioClass(image.aspectRatio)}`}
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
+          onLoad={() => {
+            // Trigger a subtle pulse effect when image loads
+            const card = document.querySelector(`[data-image-id="${image.id}"]`);
+            card?.classList.add('animate-pulse');
+            setTimeout(() => card?.classList.remove('animate-pulse'), 300);
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         

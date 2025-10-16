@@ -1,167 +1,141 @@
 import { GeneratedImage, ImageGenerationRequest } from '../types';
 
+/**
+ * Image Generation Service - Pollinations AI
+ * 
+ * This service uses Pollinations AI for completely free image generation.
+ * No API keys required, no rate limits, no costs!
+ * 
+ * Pollinations AI: https://pollinations.ai/
+ */
+
 export class ImageGenerationService {
-  private static readonly SERVER_API_URL = '/api/generate-image';
+  // Pre-compute common values for speed
+  private static readonly DIMENSIONS = {
+    '16:9': { width: 1024, height: 576 },  // Increased resolution for better quality
+    '4:3': { width: 768, height: 576 },    // Increased resolution
+    '1:1': { width: 768, height: 768 }     // Increased resolution
+  };
   
-  // Development mode fallback - generate Pollinations URL directly
-  private static generatePollinationsURL(prompt: string, aspectRatio: string = '1:1'): string {
-    const getDimensions = (aspectRatio: string) => {
-      switch (aspectRatio) {
-        case '16:9':
-          return { width: 768, height: 432 };
-        case '4:3':
-          return { width: 640, height: 480 };
-        case '1:1':
-        default:
-          return { width: 512, height: 512 };
-      }
-    };
-
-    const dimensions = getDimensions(aspectRatio);
-    const enhancedPrompt = prompt + ', high quality, detailed';
-    const encodedPrompt = encodeURIComponent(enhancedPrompt);
-    const seed = Math.floor(Math.random() * 1000000);
+  private static readonly BASE_URL = 'https://image.pollinations.ai/prompt/';
+  
+  /**
+   * Generate an image using Pollinations AI - Optimized for Speed
+   */
+  static generateImage(request: ImageGenerationRequest): GeneratedImage {
+    // Remove async/await since URL generation is synchronous
     
-    return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true`;
-  }
-
-  static async generateImage(request: ImageGenerationRequest): Promise<GeneratedImage> {
-    try {
-      // Validate request
-      if (!request.prompt || request.prompt.trim().length === 0) {
-        throw new Error('Prompt is required');
-      }
-
-      console.log('🎨 Generating image with Pollinations AI:', request.prompt);
-
-      const requestBody = {
-        prompt: request.prompt.trim(),
-        aspectRatio: request.aspectRatio || '1:1'
-      };
-
-      console.log('Request body:', requestBody);
-      console.log('Making request to:', this.SERVER_API_URL);
-      
-      let response;
-      try {
-        response = await fetch(this.SERVER_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody)
-        });
-      } catch (fetchError) {
-        console.warn('API server not available, using direct Pollinations integration');
-        // Fallback to direct Pollinations URL generation for development
-        const imageUrl = this.generatePollinationsURL(request.prompt.trim(), request.aspectRatio || '1:1');
-        const generatedImage = {
-          id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          url: imageUrl,
-          prompt: request.prompt.trim(),
-          aspectRatio: request.aspectRatio || '1:1',
-          timestamp: new Date()
-        };
-        console.log('✅ Direct Pollinations generation successful:', generatedImage.id);
-        console.log('Generated image URL:', generatedImage.url);
-        return generatedImage;
-      }
-
-      console.log('Server response status:', response.status);
-      console.log('Server response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        // Special handling for 404 - likely development mode
-        if (response.status === 404) {
-          console.warn('API endpoint not found (404), using direct Pollinations integration for development');
-          const imageUrl = this.generatePollinationsURL(request.prompt.trim(), request.aspectRatio || '1:1');
-          const generatedImage = {
-            id: `pollinations_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            url: imageUrl,
-            prompt: request.prompt.trim(),
-            aspectRatio: request.aspectRatio || '1:1',
-            timestamp: new Date()
-          };
-          console.log('✅ Direct Pollinations generation successful:', generatedImage.id);
-          console.log('Generated image URL:', generatedImage.url);
-          return generatedImage;
-        }
-        
-        let errorData;
-        try {
-          // Clone the response so we can read it twice if needed
-          const responseClone = response.clone();
-          errorData = await response.json();
-        } catch (jsonError) {
-          console.error('Failed to parse error response as JSON:', jsonError);
-          try {
-            const responseClone = response.clone();
-            const textError = await responseClone.text();
-            console.error('Raw error response:', textError);
-            errorData = { error: `Server error (${response.status}): ${textError}` };
-          } catch (textError) {
-            console.error('Failed to read error response as text:', textError);
-            errorData = { error: `Server error (${response.status})` };
-          }
-        }
-        
-        console.error('❌ Server API error:', errorData);
-        const errorMessage = errorData.error || `Server error (${response.status})`;
-        throw new Error(errorMessage);
-      }
-
-      let generatedImage;
-      try {
-        generatedImage = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse successful response as JSON:', jsonError);
-        throw new Error('Server returned invalid response format');
-      }
-      
-      // Validate response structure
-      if (!generatedImage || !generatedImage.url || !generatedImage.id) {
-        console.error('Invalid response structure:', generatedImage);
-        throw new Error('Server returned incomplete image data');
-      }
-      
-      // Convert timestamp back to Date object
-      generatedImage.timestamp = new Date(generatedImage.timestamp);
-      
-      console.log('✅ Pollinations generation successful:', generatedImage.id);
-      console.log('Generated image URL:', generatedImage.url);
-      return generatedImage;
-
-    } catch (error) {
-      console.error('❌ Image generation failed:', error);
-      
-      // If we reach here, all fallback methods failed
-      // Try one last direct Pollinations generation
-      try {
-        console.log('🔄 Attempting final fallback to direct Pollinations...');
-        const imageUrl = this.generatePollinationsURL(request.prompt.trim(), request.aspectRatio || '1:1');
-        const generatedImage = {
-          id: `pollinations_fallback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          url: imageUrl,
-          prompt: request.prompt.trim(),
-          aspectRatio: request.aspectRatio || '1:1',
-          timestamp: new Date()
-        };
-        console.log('✅ Fallback generation successful:', generatedImage.id);
-        return generatedImage;
-      } catch (fallbackError) {
-        console.error('❌ Final fallback also failed:', fallbackError);
-      }
-      
-      if (error instanceof Error) {
-        throw new Error(`Image generation failed: ${error.message}. Please try again.`);
-      }
-      
-      throw new Error('Failed to generate image. Please check your connection and try again.');
+    // Quick validation
+    if (!request.prompt?.trim()) {
+      throw new Error('Prompt is required');
     }
+
+    const prompt = request.prompt.trim();
+    const aspectRatio = request.aspectRatio || '1:1';
+    
+    // Use pre-computed dimensions for speed
+    const dimensions = this.DIMENSIONS[aspectRatio as keyof typeof this.DIMENSIONS] || this.DIMENSIONS['1:1'];
+    
+    // Optimize prompt enhancement
+    const enhancedPrompt = `${prompt}, masterpiece, best quality, highly detailed`;
+    
+    // Fast random seed generation
+    const seed = (Date.now() % 1000000) + Math.floor(Math.random() * 1000);
+    
+    // Pre-encode common parameters for speed
+    const encodedPrompt = encodeURIComponent(enhancedPrompt);
+    
+    // Build optimized URL with performance parameters
+    const imageUrl = `${this.BASE_URL}${encodedPrompt}?width=${dimensions.width}&height=${dimensions.height}&seed=${seed}&enhance=true&nologo=true&model=flux&steps=20`;
+    
+    // Generate unique ID using high-performance method
+    const id = `pollinations_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    
+    const generatedImage: GeneratedImage = {
+      id,
+      url: imageUrl,
+      prompt,
+      aspectRatio,
+      timestamp: new Date()
+    };
+    
+    // Only log in development for performance
+    if (import.meta.env.DEV) {
+      console.log('🎨 Fast Pollinations generation:', {
+        id,
+        prompt: prompt.length > 50 ? `${prompt.slice(0, 50)}...` : prompt,
+        dimensions,
+        seed
+      });
+    }
+    
+    return generatedImage;
+  }
+  
+  /**
+   * Pre-generate multiple images for instant switching
+   */
+  static generateVariations(request: ImageGenerationRequest, count: number = 3): GeneratedImage[] {
+    if (!request.prompt?.trim()) {
+      throw new Error('Prompt is required');
+    }
+    
+    const variations: GeneratedImage[] = [];
+    const baseTime = Date.now();
+    
+    for (let i = 0; i < count; i++) {
+      const variationRequest = {
+        ...request,
+        prompt: i === 0 ? request.prompt : `${request.prompt}, variation ${i + 1}`
+      };
+      
+      // Generate with slight time offset to ensure unique seeds
+      setTimeout(() => {
+        const variation = this.generateImage(variationRequest);
+        variations.push(variation);
+      }, i * 10);
+    }
+    
+    return variations;
   }
 
-  // Test Pollinations API connection (always returns true since no API key needed)
-  static async testApiKey(): Promise<boolean> {
-    return true; // Pollinations AI requires no API key
+  /**
+   * Get optimized dimensions for faster generation
+   */
+  static getDimensions(aspectRatio?: string): { width: number; height: number } {
+    return this.DIMENSIONS[aspectRatio as keyof typeof this.DIMENSIONS] || this.DIMENSIONS['1:1'];
+  }
+
+  /**
+   * Test API connection (always returns true since no API key needed)
+   */
+  static testApiKey(): boolean {
+    return true; // Pollinations AI requires no API key - made synchronous for speed
+  }
+  
+  /**
+   * Pre-warm image URLs for instant loading
+   */
+  static preloadImage(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+  
+  /**
+   * Generate and preload image for instant display
+   */
+  static async generateAndPreload(request: ImageGenerationRequest): Promise<GeneratedImage> {
+    const generatedImage = this.generateImage(request);
+    
+    // Start preloading immediately but don't wait for it
+    this.preloadImage(generatedImage.url).catch(() => {
+      // Ignore preload errors - image will load normally when displayed
+    });
+    
+    return generatedImage;
   }
 }

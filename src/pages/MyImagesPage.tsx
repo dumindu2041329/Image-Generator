@@ -18,17 +18,59 @@ const MyImagesPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [imagesPerPage] = useState(12);
   
+  // Track images that need fresh URLs
+  const [freshUrls, setFreshUrls] = useState<Record<string, string>>({});
+  
+  // Helper function to process image URLs for better loading
+  const processImageUrl = (url: string | null | undefined): string => {
+    if (!url) return '';
+    
+    // If it's already a Supabase storage URL, use it as-is
+    if (url.includes('supabase')) {
+      return url;
+    }
+    
+    return url;
+  };
+  
+  // Helper function to generate a fresh Pollinations URL from a prompt
+  const generateFreshPollinationsUrl = (prompt: string, aspectRatio: string = '1:1'): string => {
+    const dimensions = {
+      '16:9': { width: 1024, height: 576 },
+      '4:3': { width: 768, height: 576 },
+      '1:1': { width: 768, height: 768 }
+    };
+    
+    const dims = dimensions[aspectRatio as keyof typeof dimensions] || dimensions['1:1'];
+    const enhancedPrompt = `${prompt}, masterpiece, best quality, highly detailed`;
+    const seed = Date.now() % 1000000;
+    const encodedPrompt = encodeURIComponent(enhancedPrompt);
+    
+    return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dims.width}&height=${dims.height}&seed=${seed}&enhance=true&nologo=true&model=flux&steps=20`;
+  };
+  
   const { savedImages, loading, deleteImage, toggleFavorite } = useImageHistory();
   const { user, isConfigured } = useAuth();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
-  // Debug: Log when savedImages changes
+  // Debug: Check image URLs when savedImages updates
   useEffect(() => {
     console.log('savedImages state updated:', savedImages.length, 'images');
-    savedImages.forEach((img, index) => {
-      console.log(`Image ${index}:`, { id: img.id, is_favorite: img.is_favorite, prompt: img.prompt?.substring(0, 50) });
-    });
+    if (savedImages.length > 0) {
+      console.log('All saved images with URLs:');
+      savedImages.slice(0, 5).forEach((img, index) => {
+        console.log(`Image ${index + 1}:`, {
+          id: img.id,
+          url_full: img.image_url,
+          url_preview: img.image_url?.substring(0, 100) + '...',
+          url_type: img.image_url?.includes('supabase') ? 'SUPABASE_STORAGE' : 'DIRECT_POLLINATIONS',
+          style: img.style,
+          aspect_ratio: img.aspect_ratio,
+          storage_path: img.storage_file_path
+        });
+      });
+    }
   }, [savedImages]);
 
   const filteredImages = savedImages.filter(image => {
@@ -132,9 +174,7 @@ const MyImagesPage: React.FC = () => {
 
   const handleToggleFavorite = async (imageId: string, currentFavoriteStatus: boolean) => {
     try {
-      console.log('Starting favorite toggle for image:', imageId, 'current status:', currentFavoriteStatus);
       await toggleFavorite(imageId);
-      console.log('Favorite toggle completed for image:', imageId);
       
       if (currentFavoriteStatus) {
         showSuccess(
@@ -148,7 +188,6 @@ const MyImagesPage: React.FC = () => {
         );
       }
     } catch (error) {
-      console.error('Error in handleToggleFavorite:', error);
       // Silent failure with user notification
       showError(
         'Failed to Update Favorite',
@@ -210,7 +249,7 @@ const MyImagesPage: React.FC = () => {
               >
                 <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <div>
+              <div className="flex-1">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
                   <History className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
                   My Images
@@ -220,6 +259,43 @@ const MyImagesPage: React.FC = () => {
                   {filter === 'favorites' ? ' in favorites' : ''}
                 </p>
               </div>
+              
+              {/* Debug button - remove after fixing */}
+              <button
+                onClick={() => {
+                  console.log('🔍 DEBUGGING IMAGE URLS:');
+                  savedImages.slice(0, 3).forEach((img, i) => {
+                    console.log(`Image ${i + 1}:`, {
+                      id: img.id,
+                      original_url: img.image_url,
+                      fresh_url: freshUrls[img.id],
+                      storage_path: img.storage_file_path,
+                      prompt: img.prompt?.substring(0, 50) + '...'
+                    });
+                    
+                    // Test both URLs
+                    if (img.image_url) {
+                      const testImg = new Image();
+                      testImg.onload = () => console.log(`✅ Original URL ${i + 1} loads`);
+                      testImg.onerror = () => {
+                        console.log(`❌ Original URL ${i + 1} fails - generating fresh URL`);
+                        const freshUrl = generateFreshPollinationsUrl(img.prompt || '', img.aspect_ratio || '1:1');
+                        console.log('Fresh URL generated:', freshUrl);
+                        
+                        // Test fresh URL
+                        const freshImg = new Image();
+                        freshImg.onload = () => console.log(`✅ Fresh URL ${i + 1} loads!`);
+                        freshImg.onerror = () => console.log(`❌ Fresh URL ${i + 1} also fails`);
+                        freshImg.src = freshUrl;
+                      };
+                      testImg.src = img.image_url;
+                    }
+                  });
+                }}
+                className="glass rounded-lg px-3 py-1 text-xs text-yellow-400 hover:text-yellow-300"
+              >
+                Debug URLs
+              </button>
             </div>
           </div>
         </div>
@@ -298,12 +374,64 @@ const MyImagesPage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
                   {currentImages.filter(image => image).map((image) => (
                     <div key={image.id} className="glass rounded-xl sm:rounded-2xl overflow-hidden group">
-                      <div className="relative aspect-square">
+                      <div className="relative aspect-square bg-gray-800">
+                        {/* Try multiple loading approaches */}
                         <img
-                          src={image.image_url || ''}
+                          src={freshUrls[image.id] || processImageUrl(image.image_url)}
                           alt={image.prompt || 'Generated image'}
                           className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error('Image failed to load:', {
+                              url: image.image_url,
+                              imageId: image.id,
+                              usingFreshUrl: !!freshUrls[image.id],
+                              error: 'Load failed'
+                            });
+                            
+                            const target = e.target as HTMLImageElement;
+                            
+                            // If we haven't tried a fresh URL yet, generate one
+                            if (!freshUrls[image.id] && image.prompt) {
+                              console.log('Generating fresh URL for failed image:', image.id);
+                              const freshUrl = generateFreshPollinationsUrl(image.prompt, image.aspect_ratio);
+                              setFreshUrls(prev => ({ ...prev, [image.id]: freshUrl }));
+                              // Don't hide the image yet, let the fresh URL try to load
+                              return;
+                            }
+                            
+                            // If fresh URL also failed, show placeholder
+                            target.style.display = 'none';
+                            const placeholder = target.parentElement?.querySelector('.image-placeholder');
+                            if (placeholder) {
+                              placeholder.classList.remove('hidden');
+                            }
+                          }}
+                          onLoad={(e) => {
+                            console.log('Image loaded successfully:', {
+                              url: image.image_url?.substring(0, 100) + '...',
+                              imageId: image.id,
+                              naturalWidth: (e.target as HTMLImageElement).naturalWidth,
+                              naturalHeight: (e.target as HTMLImageElement).naturalHeight
+                            });
+                            // Hide placeholder
+                            const placeholder = (e.target as HTMLImageElement).parentElement?.querySelector('.image-placeholder');
+                            if (placeholder) {
+                              placeholder.classList.add('hidden');
+                            }
+                          }}
                         />
+                        {/* Placeholder for failed images */}
+                        <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-gray-700 text-gray-400">
+                          <div className="text-center p-4">
+                            <div className="w-12 h-12 mx-auto mb-2 opacity-50">
+                              <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                              </svg>
+                            </div>
+                            <p className="text-xs">Image unavailable</p>
+                          </div>
+                        </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         
                         {/* Action buttons */}

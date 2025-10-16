@@ -31,19 +31,37 @@ export const getClerkToken = async () => {
     const globalClerk: any = (window as any)?.Clerk;
 
     if (globalClerk?.session) {
-      const token = await globalClerk.session.getToken({ template: 'supabase' });
-      if (token) return token;
+      // Try supabase template first, fallback to default token
+      try {
+        const token = await globalClerk.session.getToken({ template: 'supabase' });
+        if (token) return token;
+      } catch (templateError) {
+        console.warn('Supabase template not configured in Clerk, using default token');
+      }
+      
+      // Fallback to default token
+      const defaultToken = await globalClerk.session.getToken();
+      if (defaultToken) return defaultToken;
     }
 
     // Fallback to local Clerk instance (requires manual initialization)
     if (clerk?.session) {
-      const token = await clerk.session.getToken({ template: 'supabase' });
-      if (token) return token;
+      try {
+        const token = await clerk.session.getToken({ template: 'supabase' });
+        if (token) return token;
+      } catch (templateError) {
+        console.warn('Supabase template not configured in Clerk, using default token');
+      }
+      
+      // Fallback to default token
+      const defaultToken = await clerk.session.getToken();
+      if (defaultToken) return defaultToken;
     }
 
+    console.warn('No active Clerk session found');
     return null;
   } catch (error) {
-    // Silent failure - just return null without logging to console
+    console.error('Error getting Clerk token:', error);
     return null;
   }
 };

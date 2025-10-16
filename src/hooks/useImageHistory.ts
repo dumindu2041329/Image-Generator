@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, getAuthenticatedStorageClient, SavedImage, getUserId } from '../lib/supabase';
 import { useAuth } from './useAuth';
 
@@ -10,7 +10,10 @@ export const useImageHistory = () => {
   const userId = getUserId(user);
 
   const fetchSavedImages = useCallback(async () => {
-    if (!isConfigured || !userId || !supabase) return;
+    if (!isConfigured || !userId || !supabase) {
+      console.log('fetchSavedImages skipped:', { isConfigured, userId: !!userId, supabase: !!supabase });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -24,6 +27,7 @@ export const useImageHistory = () => {
         console.error('Fetch saved images error:', error);
         throw error;
       }
+      
       // Filter out any null or invalid entries
       const validData = (data || []).filter((item: any) => {
         if (!item || typeof item !== 'object' || !item.id) {
@@ -32,7 +36,7 @@ export const useImageHistory = () => {
         }
         return true;
       });
-      console.log('Valid images loaded:', validData.length, 'out of', (data || []).length);
+      
       setSavedImages(validData);
     } catch (error) {
       // Log the error for debugging
@@ -50,94 +54,242 @@ export const useImageHistory = () => {
     }
   }, [userId, isConfigured, fetchSavedImages]);
 
+  // Track pending saves to prevent concurrent duplicates
+  const pendingSavesRef = useRef(new Set<string>());
+
   const saveImage = async (
     prompt: string,
     generatedImageUrl: string,
     aspectRatio: '1:1' | '16:9' | '4:3',
-    style: 'vivid' | 'natural'
+    style: string = 'pollinations'
   ): Promise<SavedImage | null> => {
     if (!isConfigured || !userId || !supabase) {
-      // Silent failure - authentication not configured
+      console.warn('Cannot save image: not configured or missing user/supabase');
       return null;
     }
 
+    // Create a unique key for this save operation
+    const saveKey = `${userId}:${generatedImageUrl}`;
+    
+    // Check if this exact save is already in progress
+    if (pendingSavesRef.current.has(saveKey)) {
+      console.log('⏳ Save already in progress for this image, skipping duplicate save');
+      return null;
+    }
+    
+    // Mark this save as pending
+    pendingSavesRef.current.add(saveKey);
+
+    console.log('saveImage called with:', { prompt: prompt.substring(0, 50), generatedImageUrl, aspectRatio, style, userId });
+
+    // HYBRID APPROACH: Try to upload to storage, fallback to direct URL if needed
     try {
-      // 1. Fetch the image from the external URL as a blob
-      const response = await fetch(generatedImageUrl);
-      if (!response.ok) {
-        console.error(`Failed to fetch generated image for saving. Status: ${response.status}, URL: ${generatedImageUrl}`);
-        throw new Error(`Failed to fetch generated image for saving. Status: ${response.status}`);
+      // First check if we already have this image saved (by URL or similar prompt)
+      const { data: recentDuplicate } = await supabase
+        .from('saved_images')
+        .select('id, prompt, image_url')
+        .eq('user_id', userId)
+        .or(`image_url.eq.${generatedImageUrl},prompt.eq.${prompt}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (recentDuplicate?.id) {
+        console.log('🔍 Found existing image with same URL or prompt, skipping save:', recentDuplicate.id);
+        pendingSavesRef.current.delete(saveKey);
+        return recentDuplicate as SavedImage;
+      }
+      const validStyle = style === 'vivid' || style === 'natural' ? style : 'vivid';
+      
+      // First, try to fetch and upload the image to storage for better reliability
+      let storageUploadCompleted = false;
+      try {
+        console.log('🖼️ Attempting to fetch image for storage upload:', generatedImageUrl.substring(0, 100) + '...');
+        
+        const response = await fetch(generatedImageUrl, {
+          signal: AbortSignal.timeout(10000), // 10 second timeout
+        });
+        
+        console.log('📥 Fetch response status:', response.status, response.statusText);
+        
+        if (response.ok) {
+          const imageBlob = await response.blob();
+          console.log('✅ Image blob fetched:', { type: imageBlob.type, size: imageBlob.size });
+          
+          if (imageBlob.size > 0 && imageBlob.type.startsWith('image/')) {
+            console.log('✅ Blob is valid image, proceeding with storage upload');
+            // Upload to Supabase Storage
+            const fileExt = imageBlob.type.split('/')[1] || 'jpg';
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `${userId}/${fileName}`;
+            
+            console.log('📤 Uploading to storage:', { filePath, size: imageBlob.size, type: imageBlob.type });
+            
+            const authStorageClient = await getAuthenticatedStorageClient();
+            if (!authStorageClient) {
+              console.error('❌ Storage client not available!');
+              throw new Error('Storage client not available');
+            }
+            
+            const { error: uploadError, data: uploadData } = await authStorageClient.storage
+              .from('generated_images')
+              .upload(filePath, imageBlob, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: imageBlob.type,
+              });
+            
+            if (uploadError) {
+              console.error('❌ Storage upload failed:', { uploadError, filePath });
+              throw uploadError;
+            }
+            
+            console.log('✅ Storage upload successful:', uploadData);
+            
+            // Get public URL
+            const { data: { publicUrl } } = authStorageClient.storage
+              .from('generated_images')
+              .getPublicUrl(filePath);
+            
+            if (!publicUrl) {
+              console.error('❌ Failed to get public URL');
+              throw new Error('Failed to get public URL');
+            }
+            
+            console.log('✅ Public URL obtained:', publicUrl.substring(0, 100) + '...');
+            
+            // Save with storage URL
+            const imageData = {
+              user_id: userId,
+              prompt: prompt,
+              image_url: publicUrl,
+              aspect_ratio: aspectRatio,
+              style: validStyle,
+              is_favorite: false,
+              storage_file_path: filePath,
+            };
+            
+            // Idempotency: avoid duplicate rows by same URL for same user
+            const { data: existingStorage } = await supabase
+              .from('saved_images')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('image_url', publicUrl)
+              .limit(1)
+              .maybeSingle();
+            if (existingStorage?.id) {
+              console.log('ℹ️ Duplicate detected (storage URL), skipping insert');
+              pendingSavesRef.current.delete(saveKey);
+              setTimeout(() => fetchSavedImages(), 500);
+              return existingStorage as any;
+            }
+            
+            console.log('💾 Saving to database with storage URL');
+            const { data, error: insertError } = await supabase
+              .from('saved_images')
+              .insert(imageData)
+              .select()
+              .single();
+            
+            if (insertError) {
+              // Check if it's a unique constraint violation
+              if (insertError.code === '23505' || insertError.message?.includes('duplicate')) {
+                console.log('⚠️ Unique constraint violation - image already exists');
+                pendingSavesRef.current.delete(saveKey);
+                setTimeout(() => fetchSavedImages(), 500);
+                storageUploadCompleted = true; // Still mark as completed to prevent fallback
+                return null;
+              }
+              console.error('❌ Database insert failed:', insertError);
+              throw insertError;
+            }
+            
+            // Insert was successful (no error), even if data is null
+            console.log('✅ Storage upload + database insert successful!', data ? 'with data' : 'without returned data');
+            pendingSavesRef.current.delete(saveKey);
+            // Trigger a fresh fetch of saved images instead of adding directly
+            setTimeout(() => fetchSavedImages(), 500);
+            storageUploadCompleted = true; // Mark as completed to prevent fallback
+            return data || {}; // Return empty object if no data, but still successful
+          } else {
+            console.warn('⚠️ Invalid blob: size=' + imageBlob.size + ', type=' + imageBlob.type);
+          }
+        } else {
+          console.error('❌ Fetch failed:', response.status, response.statusText);
+        }
+      } catch (fetchError) {
+        console.error('❌ Storage upload failed, will use fallback:', fetchError);
       }
       
-      const imageBlob = await response.blob();
-      
-      // Check if the blob is actually an image and has content
-      if (!imageBlob.type.startsWith('image/')) {
-        console.error(`Generated image is not a valid image type: ${imageBlob.type}, URL: ${generatedImageUrl}`);
-        throw new Error(`Generated image is not a valid image type: ${imageBlob.type}`);
+      // Check if storage upload was completed successfully
+      if (storageUploadCompleted) {
+        console.log('✅ Storage upload was completed, no need for fallback');
+        return null;
       }
       
-      if (imageBlob.size === 0) {
-        console.error(`Generated image is empty (0 bytes), URL: ${generatedImageUrl}`);
-        throw new Error('Generated image is empty (0 bytes). The image generation service may be experiencing issues. Please try again.');
-      }
-      const fileExt = imageBlob.type.split('/')[1] || 'jpg';
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
-
-      // 2. Upload the blob to Supabase Storage
-      const authStorageClient = await getAuthenticatedStorageClient();
-      const { error: uploadError } = await authStorageClient?.storage
-        .from('generated_images')
-        .upload(filePath, imageBlob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: imageBlob.type || 'image/jpeg',
-        }) || { error: new Error('Storage client not available') };
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // 3. Get the public URL of the uploaded image
-      const { data: { publicUrl } } = authStorageClient?.storage
-        .from('generated_images')
-        .getPublicUrl(filePath) || { data: { publicUrl: '' } };
-
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for the uploaded image.');
-      }
-
-      // 4. Save the metadata to the database, including the storage path
+      // Fallback: Save original URL directly (ONLY if storage upload didn't succeed)
+      console.log('📌 Using direct URL fallback');
       const imageData = {
         user_id: userId,
-        prompt,
-        image_url: publicUrl,
+        prompt: prompt,
+        image_url: generatedImageUrl,
         aspect_ratio: aspectRatio,
-        style,
+        style: validStyle,
         is_favorite: false,
-        storage_file_path: filePath, // Save the direct path
       };
+
+      // Idempotency: skip if a row with same URL already exists
+      const { data: existing } = await supabase
+        .from('saved_images')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('image_url', generatedImageUrl)
+        .limit(1)
+        .maybeSingle();
+      if (existing?.id) {
+        console.log('ℹ️ Duplicate detected (direct URL), skipping insert');
+        pendingSavesRef.current.delete(saveKey);
+        setTimeout(() => fetchSavedImages(), 500);
+        return existing as any;
+      }
 
       const { data, error: insertError } = await supabase
         .from('saved_images')
-        .insert([imageData])
+        .insert(imageData)
         .select()
         .single();
 
       if (insertError) {
-        console.error('Database insert error:', insertError);
-        throw insertError;
+        // Check if it's a unique constraint violation
+        if (insertError.code === '23505' || insertError.message?.includes('duplicate')) {
+          console.log('⚠️ Unique constraint violation - image already exists');
+          pendingSavesRef.current.delete(saveKey);
+          setTimeout(() => fetchSavedImages(), 500);
+          return null;
+        }
+        console.error('Database insert failed:', {
+          error: insertError,
+          message: insertError.message,
+          code: insertError.code,
+          details: insertError.details,
+          hint: insertError.hint
+        });
+        return null;
       }
 
-      if (data && typeof data === 'object' && data.id) {
-        setSavedImages(prev => [data, ...prev]);
-      }
-      return data;
+      // Insert was successful (no error), even if data is null
+      console.log('🎆 Direct URL database insert successful!', data ? 'with data' : 'without returned data');
+      pendingSavesRef.current.delete(saveKey);
+      // Trigger a fresh fetch of saved images instead of adding directly
+      setTimeout(() => fetchSavedImages(), 500);
+      return data || {}; // Return empty object if no data, but still successful
     } catch (error) {
-      // Log the error for debugging
-      console.error('Save image error:', error);
+      console.error('saveImage catch block:', error);
+      pendingSavesRef.current.delete(saveKey);
       return null;
+    } finally {
+      // Always clean up the pending save marker
+      pendingSavesRef.current.delete(saveKey);
     }
   };
 
