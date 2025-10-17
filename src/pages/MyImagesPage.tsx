@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { History, Heart, Trash2, Download, Filter, Search, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History, Heart, Trash2, Download, Filter, Search, ArrowLeft, ChevronLeft, ChevronRight, Eye, X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useImageHistory } from '../hooks/useImageHistory';
 import { useAuth } from '../hooks/useAuth';
@@ -20,6 +20,16 @@ const MyImagesPage: React.FC = () => {
   
   // Track images that need fresh URLs
   const [freshUrls, setFreshUrls] = useState<Record<string, string>>({});
+  
+  // Preview modal state
+  const [preview, setPreview] = useState<{ id: string; url: string; prompt?: string } | null>(null);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  // Zoom & pan state for preview
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState<{x:number;y:number}|null>(null);
   
   // Helper function to process image URLs for better loading
   const processImageUrl = (url: string | null | undefined): string => {
@@ -92,6 +102,82 @@ const MyImagesPage: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, searchQuery]);
+  
+  // Close preview and navigate/zoom with keyboard
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreview(null);
+        return;
+      }
+      if (!preview) return;
+      if (e.key === 'ArrowRight') {
+        goNext();
+      } else if (e.key === 'ArrowLeft') {
+        goPrev();
+      } else if (e.key === '+' || e.key === '=') {
+        zoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        zoomOut();
+      } else if (e.key === '0') {
+        resetZoom();
+      }
+    };
+    if (preview) {
+      window.addEventListener('keydown', onKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [preview]);
+
+  const openPreview = (img: any) => {
+    const idx = currentImages.findIndex((i) => i.id === img.id);
+    setPreviewIndex(idx >= 0 ? idx : 0);
+    setPreview({
+      id: img.id,
+      url: freshUrls[img.id] || processImageUrl(img.image_url),
+      prompt: img.prompt || undefined,
+    });
+    setPreviewLoaded(false);
+    resetZoom();
+  };
+
+  const goToIndex = (idx: number) => {
+    if (currentImages.length === 0) return;
+    const normalized = (idx + currentImages.length) % currentImages.length;
+    const img = currentImages[normalized];
+    setPreviewIndex(normalized);
+    setPreview({
+      id: img.id,
+      url: freshUrls[img.id] || processImageUrl(img.image_url),
+      prompt: img.prompt || undefined,
+    });
+    setPreviewLoaded(false);
+    resetZoom();
+  };
+
+  const goNext = () => {
+    if (previewIndex === null) return;
+    goToIndex(previewIndex + 1);
+  };
+  const goPrev = () => {
+    if (previewIndex === null) return;
+    goToIndex(previewIndex - 1);
+  };
+
+  const zoomIn = () => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)));
+  const zoomOut = () => setZoom((z) => {
+    const nz = Math.max(1, +(z - 0.25).toFixed(2));
+    if (nz === 1) setPan({ x: 0, y: 0 });
+    return nz;
+  });
+  const resetZoom = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setIsPanning(false);
+    setPanStart(null);
+  };
   
   // Pagination controls
   const goToPage = (pageNumber: number) => {
@@ -461,6 +547,14 @@ const MyImagesPage: React.FC = () => {
                           >
                             <Heart className={`w-4 h-4 ${image.is_favorite ? 'fill-current' : ''}`} />
                           </button>
+                          {/* Preview button */}
+                          <button
+                            onClick={() => openPreview(image) }
+                            className="glass rounded-full p-2 text-gray-400 hover:text-white transition-colors duration-300"
+                            title="Preview"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => handleDownload(image.image_url || '', image.id)}
                             disabled={downloadingIds.has(image.id)}
@@ -575,7 +669,82 @@ const MyImagesPage: React.FC = () => {
           </div>
         </div>
       </div>
-
+      
+      {/* Image Preview Modal */}
+      {preview && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setPreview(null)} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-6xl max-h-[90vh] flex flex-col">
+              {/* Controls */}
+              <div className="absolute top-3 left-3 z-20 flex gap-2">
+                <button type="button" onClick={(e)=>{e.stopPropagation();zoomOut();}} className="glass rounded-full p-2 text-gray-300 hover:text-white" title="Zoom out (-)"><ZoomOut className="w-5 h-5"/></button>
+                <button type="button" onClick={(e)=>{e.stopPropagation();resetZoom();}} className="glass rounded-full p-2 text-gray-300 hover:text-white" title="Reset zoom (0)"><RotateCcw className="w-5 h-5"/></button>
+                <button type="button" onClick={(e)=>{e.stopPropagation();zoomIn();}} className="glass rounded-full p-2 text-gray-300 hover:text-white" title="Zoom in (+)"><ZoomIn className="w-5 h-5"/></button>
+              </div>
+              {/* Prev/Next */}
+              {preview && currentImages.length > 1 && (
+                <>
+                  <button type="button" onClick={(e)=>{e.stopPropagation();goPrev();}} className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 glass rounded-full p-2 text-gray-300 hover:text-white" aria-label="Previous image"><ChevronLeft className="w-6 h-6"/></button>
+                  <button type="button" onClick={(e)=>{e.stopPropagation();goNext();}} className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 glass rounded-full p-2 text-gray-300 hover:text-white" aria-label="Next image"><ChevronRight className="w-6 h-6"/></button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreview(null);
+                }}
+                className="absolute top-3 right-3 z-20 glass rounded-full p-2 text-gray-300 hover:text-white"
+                aria-label="Close preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              {/* Image area */}
+              <div 
+                className="relative flex-1 min-h-0 bg-black/60 rounded-xl overflow-hidden flex items-center justify-center"
+                onWheel={(e)=>{
+                  e.preventDefault();
+                  if (e.deltaY < 0) zoomIn(); else zoomOut();
+                }}
+                onMouseDown={(e)=>{
+                  if (zoom === 1) return;
+                  e.preventDefault();
+                  setIsPanning(true);
+                  setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+                }}
+                onMouseMove={(e)=>{
+                  if (!isPanning || !panStart) return;
+                  setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+                }}
+                onMouseUp={()=>{ setIsPanning(false); }}
+                onMouseLeave={()=>{ setIsPanning(false); }}
+              >
+                <img
+                  src={preview.url}
+                  alt={preview.prompt || 'Preview image'}
+                  className="max-w-none select-none"
+                  style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transition: isPanning ? 'none' : 'transform 0.1s ease-out', maxHeight: '100%', maxWidth: '100%' }}
+                  draggable={false}
+                  onLoad={() => { setPreviewLoaded(true); }}
+                />
+                {!previewLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <div className="w-10 h-10 border-4 border-gray-400 border-t-blue-400 rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+              {/* Prompt below with limited height */}
+              {preview.prompt && (
+                <div className="mt-3 text-center text-gray-300 text-sm max-h-24 overflow-auto px-2">
+                  {preview.prompt}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
