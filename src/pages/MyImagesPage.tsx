@@ -391,18 +391,22 @@ const MyImagesPage: React.FC = () => {
                             
                             const target = e.target as HTMLImageElement;
                             
-                            // If we haven't tried a fresh URL yet, generate one
+                            // If we haven't tried a fresh URL yet, generate one and keep spinner visible
                             if (!freshUrls[image.id] && image.prompt) {
                               console.log('Generating fresh URL for failed image:', image.id);
                               const freshUrl = generateFreshPollinationsUrl(image.prompt, image.aspect_ratio);
                               setFreshUrls(prev => ({ ...prev, [image.id]: freshUrl }));
-                              // Don't hide the image yet, let the fresh URL try to load
                               return;
                             }
                             
-                            // If fresh URL also failed, show placeholder
+                            // If fresh URL also failed, hide spinner and show placeholder
                             target.style.display = 'none';
-                            const placeholder = target.parentElement?.querySelector('.image-placeholder');
+                            const container = target.parentElement;
+                            const placeholder = container?.querySelector('.image-placeholder');
+                            const loadingOverlay = container?.querySelector('.image-loading');
+                            if (loadingOverlay) {
+                              loadingOverlay.classList.add('hidden');
+                            }
                             if (placeholder) {
                               placeholder.classList.remove('hidden');
                             }
@@ -414,15 +418,25 @@ const MyImagesPage: React.FC = () => {
                               naturalWidth: (e.target as HTMLImageElement).naturalWidth,
                               naturalHeight: (e.target as HTMLImageElement).naturalHeight
                             });
-                            // Hide placeholder
-                            const placeholder = (e.target as HTMLImageElement).parentElement?.querySelector('.image-placeholder');
+                            const container = (e.target as HTMLImageElement).parentElement;
+                            // Hide loading overlay
+                            const loadingOverlay = container?.querySelector('.image-loading');
+                            if (loadingOverlay) {
+                              loadingOverlay.classList.add('hidden');
+                            }
+                            // Hide placeholder (in case it was visible)
+                            const placeholder = container?.querySelector('.image-placeholder');
                             if (placeholder) {
                               placeholder.classList.add('hidden');
                             }
                           }}
                         />
+                        {/* Loading overlay */}
+                        <div className="image-loading absolute inset-0 flex items-center justify-center bg-gray-900/40">
+                          <div className="w-8 h-8 border-2 border-gray-400 border-t-blue-400 rounded-full animate-spin"></div>
+                        </div>
                         {/* Placeholder for failed images */}
-                        <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-gray-700 text-gray-400">
+                        <div className="image-placeholder absolute inset-0 flex items-center justify-center bg-gray-700 text-gray-400 hidden">
                           <div className="text-center p-4">
                             <div className="w-12 h-12 mx-auto mb-2 opacity-50">
                               <svg viewBox="0 0 24 24" fill="currentColor">
