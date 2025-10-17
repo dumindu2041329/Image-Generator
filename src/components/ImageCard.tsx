@@ -12,6 +12,8 @@ interface ImageCardProps {
 const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { showSuccess, showError } = useToast();
 
   const handleDownload = async () => {
@@ -116,20 +118,56 @@ const ImageCard: React.FC<ImageCardProps> = ({ image }) => {
       data-image-id={image.id}
     >
       <div className="relative overflow-hidden flex-1">
-        <img
-          src={image.url}
-          alt={image.prompt}
-          className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 ${getAspectRatioClass(image.aspectRatio)}`}
-          loading="eager"
-          decoding="async"
-          fetchpriority="high"
-          onLoad={() => {
-            // Trigger a subtle pulse effect when image loads
-            const card = document.querySelector(`[data-image-id="${image.id}"]`);
-            card?.classList.add('animate-pulse');
-            setTimeout(() => card?.classList.remove('animate-pulse'), 300);
-          }}
-        />
+        {!imageError ? (
+          <img
+            src={image.url}
+            alt={image.prompt}
+            className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-110 ${getAspectRatioClass(image.aspectRatio)} ${
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+            onLoad={() => {
+              setImageLoaded(true);
+              // Trigger a subtle pulse effect when image loads
+              const card = document.querySelector(`[data-image-id="${image.id}"]`);
+              card?.classList.add('animate-pulse');
+              setTimeout(() => card?.classList.remove('animate-pulse'), 300);
+            }}
+            onError={() => {
+              setImageError(true);
+              console.warn('Failed to load image:', image.url);
+            }}
+          />
+        ) : (
+          // Error fallback
+          <div className={`w-full h-full bg-gray-800 flex items-center justify-center ${getAspectRatioClass(image.aspectRatio)}`}>
+            <div className="text-center text-gray-400">
+              <div className="text-2xl mb-2">⚠️</div>
+              <div className="text-sm">Image failed to load</div>
+              <button 
+                onClick={() => {
+                  setImageError(false);
+                  setImageLoaded(false);
+                }}
+                className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Loading overlay */}
+        {!imageLoaded && !imageError && (
+          <div className={`absolute inset-0 bg-gray-800 flex items-center justify-center ${getAspectRatioClass(image.aspectRatio)}`}>
+            <div className="text-center text-gray-400">
+              <div className="w-8 h-8 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin mx-auto mb-2"></div>
+              <div className="text-sm">Loading image...</div>
+            </div>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         
         {/* Aspect Ratio Badge */}
