@@ -2,6 +2,19 @@ import { Clerk } from '@clerk/clerk-js';
 
 const clerkPubKey = (import.meta as any).env.VITE_CLERK_PUBLISHABLE_KEY;
 
+// Helper to decode JWT and extract claims (for debugging only)
+const decodeJWT = (token: string) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch (error) {
+    console.error('Failed to decode JWT:', error);
+    return null;
+  }
+};
+
 // Check if Clerk is configured
 export const isClerkConfigured = () => {
   return clerkPubKey && 
@@ -34,14 +47,34 @@ export const getClerkToken = async () => {
       // Try supabase template first, fallback to default token
       try {
         const token = await globalClerk.session.getToken({ template: 'supabase' });
-        if (token) return token;
+        if (token) {
+          const claims = decodeJWT(token);
+          console.log('✅ Using Clerk Supabase JWT template');
+          console.log('🔑 JWT Claims:', {
+            sub: claims?.sub,
+            user_id: claims?.user_id,
+            iss: claims?.iss,
+            exp: claims?.exp ? new Date(claims.exp * 1000).toISOString() : 'unknown'
+          });
+          return token;
+        }
       } catch (templateError) {
-        console.warn('Supabase template not configured in Clerk, using default token');
+        console.warn('⚠️ Supabase template not configured in Clerk, using default token');
       }
       
       // Fallback to default token
       const defaultToken = await globalClerk.session.getToken();
-      if (defaultToken) return defaultToken;
+      if (defaultToken) {
+        const claims = decodeJWT(defaultToken);
+        console.log('✅ Using default Clerk JWT token');
+        console.log('🔑 JWT Claims:', {
+          sub: claims?.sub,
+          user_id: claims?.user_id,
+          iss: claims?.iss,
+          exp: claims?.exp ? new Date(claims.exp * 1000).toISOString() : 'unknown'
+        });
+        return defaultToken;
+      }
     }
 
     // Fallback to local Clerk instance (requires manual initialization)

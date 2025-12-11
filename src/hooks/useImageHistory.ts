@@ -84,18 +84,17 @@ export const useImageHistory = () => {
 
     // HYBRID APPROACH: Try to upload to storage, fallback to direct URL if needed
     try {
-      // First check if we already have this image saved (by URL or similar prompt)
+      // Only check if we already have this exact image URL saved (not prompt, since users can generate multiple images with same prompt)
       const { data: recentDuplicate } = await supabase
         .from('saved_images')
         .select('id, prompt, image_url')
         .eq('user_id', userId)
-        .or(`image_url.eq.${generatedImageUrl},prompt.eq.${prompt}`)
-        .order('created_at', { ascending: false })
+        .eq('image_url', generatedImageUrl)
         .limit(1)
         .maybeSingle();
       
       if (recentDuplicate?.id) {
-        console.log('🔍 Found existing image with same URL or prompt, skipping save:', recentDuplicate.id);
+        console.log('🔍 Found existing image with same URL, skipping save:', recentDuplicate.id);
         pendingSavesRef.current.delete(saveKey);
         return recentDuplicate as SavedImage;
       }
@@ -105,10 +104,43 @@ export const useImageHistory = () => {
       let storageUploadCompleted = false;
       try {
         console.log('🖼️ Attempting to fetch image for storage upload:', generatedImageUrl.substring(0, 100) + '...');
+        console.log('👤 Current user ID:', userId);
         
-        const response = await fetch(generatedImageUrl, {
-          signal: AbortSignal.timeout(10000), // 10 second timeout
-        });
+        // Add retry logic for fetching the image
+        let response: Response | null = null;
+        let lastError: Error | null = null;
+        const maxRetries = 3;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            console.log(`🔄 Fetch attempt ${attempt}/${maxRetries}`);
+            response = await fetch(generatedImageUrl, {
+              mode: 'cors',
+              signal: AbortSignal.timeout(30000), // 30 second timeout
+            });
+            
+            if (response.ok) {
+              console.log('✅ Fetch successful on attempt', attempt);
+              break; // Success, exit retry loop
+            } else {
+              console.warn(`⚠️ Fetch failed with status ${response.status} on attempt ${attempt}`);
+              lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+              if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+              }
+            }
+          } catch (fetchError: any) {
+            console.warn(`⚠️ Fetch error on attempt ${attempt}:`, fetchError.message);
+            lastError = fetchError;
+            if (attempt < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+            }
+          }
+        }
+        
+        if (!response || !response.ok) {
+          throw lastError || new Error('Failed to fetch image after retries');
+        }
         
         console.log('📥 Fetch response status:', response.status, response.statusText);
         
@@ -120,10 +152,16 @@ export const useImageHistory = () => {
             console.log('✅ Blob is valid image, proceeding with storage upload');
             // Upload to Supabase Storage
             const fileExt = imageBlob.type.split('/')[1] || 'jpg';
-            const fileName = `${Date.now()}.${fileExt}`;
+            const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}.${fileExt}`;
             const filePath = `${userId}/${fileName}`;
             
-            console.log('📤 Uploading to storage:', { filePath, size: imageBlob.size, type: imageBlob.type });
+            console.log('📤 Uploading to storage:', { 
+              filePath, 
+              size: imageBlob.size, 
+              type: imageBlob.type,
+              userId,
+              fileName
+            });
             
             const authStorageClient = await getAuthenticatedStorageClient();
             if (!authStorageClient) {
@@ -140,7 +178,13 @@ export const useImageHistory = () => {
               });
             
             if (uploadError) {
-              console.error('❌ Storage upload failed:', { uploadError, filePath });
+              console.error('❌ Storage upload failed:', { 
+                error: uploadError,
+                message: uploadError.message,
+                statusCode: uploadError.statusCode,
+                filePath,
+                userId
+              });
               throw uploadError;
             }
             
@@ -185,6 +229,15 @@ export const useImageHistory = () => {
             }
             
             console.log('💾 Saving to database with storage URL');
+            console.log('💾 Insert data:', {
+              user_id: imageData.user_id,
+              prompt: imageData.prompt.substring(0, 50) + '...',
+              image_url: imageData.image_url.substring(0, 100) + '...',
+              aspect_ratio: imageData.aspect_ratio,
+              style: imageData.style,
+              storage_file_path: imageData.storage_file_path
+            });
+            
             const { data, error: insertError } = await supabase
               .from('saved_images')
               .insert(imageData)
@@ -200,7 +253,13 @@ export const useImageHistory = () => {
                 storageUploadCompleted = true; // Still mark as completed to prevent fallback
                 return null;
               }
-              console.error('❌ Database insert failed:', insertError);
+              console.error('❌ Database insert failed:', {
+                error: insertError,
+                message: insertError.message,
+                code: insertError.code,
+                details: insertError.details,
+                hint: insertError.hint
+              });
               throw insertError;
             }
             
